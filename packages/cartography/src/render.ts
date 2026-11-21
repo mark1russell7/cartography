@@ -9,6 +9,7 @@ import { escapeAttribute, escapeHtml } from "@mark1russell7/text";
 import { MapError } from "./errors.ts";
 import { checkFilter, matchesFilter, type Filter } from "./filter.ts";
 import { frameView, type Frame, type FrameView, type PaperPoint } from "./frame.ts";
+import { checkLabelRule, labelsSvg, placeLabels, type LabelFont, type LabelPlacement, type LabelRule } from "./labels.ts";
 import { northArrowSvg, SCALE_BAR_ROW_MM, scaleBarLength, scaleBarSvg, type ScaleBarUnits } from "./marks.ts";
 import { checkStyle, grayColor, hatchPattern, mm, pointSymbol, strokeAttributes, type Style } from "./style.ts";
 
@@ -40,6 +41,8 @@ export interface Layer {
   readonly legend?: string;
   /** The tolerance in millimetres on the paper for the simplification of the areas. No value keeps each position. */
   readonly simplifyMm?: number;
+  /** The rule of the labels of the features. No rule gives no labels. */
+  readonly label?: LabelRule;
 }
 
 /** A map: a frame, layers from the bottom to the top, and its marks. */
@@ -87,6 +90,7 @@ export function checkMap(map: MapDocument): void {
     checkSource(layer.source, layer.id);
     checkStyle(layer.style, layer.id);
     if (layer.filter !== undefined) checkFilter(layer.filter, `layer "${layer.id}" filter`);
+    if (layer.label !== undefined) checkLabelRule(layer.label, layer.id);
     if (layer.simplifyMm !== undefined && !(Number.isFinite(layer.simplifyMm) && layer.simplifyMm > 0)) {
       throw new MapError("style", `The layer "${layer.id}": the tolerance ${layer.simplifyMm} is not a finite number more than 0`);
     }
@@ -185,6 +189,44 @@ function featuresOf(layer: Layer, frame: Frame): Feature[] {
   return result;
 }
 
+/** The options of `renderMap` and `mapLabels`. */
+export interface RenderOptions {
+  /** The font of the labels. A map with a label rule needs it. */
+  readonly labelFont?: LabelFont;
+}
+
+/** The middle of the north arrow, from the top right corner of the frame, and the half size of its box, in millimetres. */
+const NORTH_ARROW = { inset: 6.5, half: 4.7 };
+
+function placementOf(map: MapDocument, features: readonly Feature[][], view: FrameView, font: LabelFont): LabelPlacement {
+  const obstacles = map.northArrow === false ? [] : [{ x: map.frame.widthMm - NORTH_ARROW.inset, y: NORTH_ARROW.inset, half: NORTH_ARROW.half }];
+  const layers = map.layers.map((layer, i) => ({ id: layer.id, features: features[i]!, label: layer.label, pointSizeMm: layer.style.point?.sizeMm }));
+  return placeLabels(layers, view, font, obstacles);
+}
+
+function labelFontOf(map: MapDocument, options: RenderOptions): LabelFont | undefined {
+  const labelled = map.layers.find((layer) => layer.label !== undefined);
+  if (labelled === undefined) return undefined;
+  const font = options.labelFont;
+  if (font === undefined || typeof font.measure !== "function" || typeof font.family !== "string" || font.family.trim() === "") {
+    throw new MapError("label", `The layer "${labelled.id}" has labels, so the options need a label font with a family and a measure`);
+  }
+  return font;
+}
+
+/**
+ * This function gives the labels of a map with their places, and the texts with no place. `renderMap` draws the same
+ * labels.
+ *
+ * @throws MapError - The map is not correct, as `checkMap` tells, or a layer has labels and the options have no font.
+ */
+export function mapLabels(map: MapDocument, options: RenderOptions = {}): LabelPlacement {
+  checkMap(map);
+  const font = labelFontOf(map, options);
+  if (font === undefined) return { placed: [], skipped: [] };
+  return placementOf(map, map.layers.map((layer) => featuresOf(layer, map.frame)), frameView(map.frame), font);
+}
+
 /** This function gives the swatch of a layer in the legend, with its top left corner at a point. */
 function swatch(style: Style, x: number, y: number, fill: string | undefined): string {
   if (style.point !== undefined) return pointSymbol(style.point, x + 3, y + 1.75);
@@ -220,12 +262,15 @@ export function attributionLines(map: MapDocument): string[] {
  * - The layers are in their sequence, from the bottom to the top. The frame clips each layer.
  * - A feature that is not on the frame is not in the SVG.
  * - Each identifier in the SVG starts with the identifier of the map. Thus two maps can be in one HTML page.
+ * - The labels are above the layers. `placeLabels` tells their places. The group of the labels tells the number of
+ *   texts with no place in `data-skipped`.
  *
- * @throws MapError - The map is not correct, as `checkMap` tells.
+ * @throws MapError - The map is not correct, as `checkMap` tells, or a layer has labels and the options have no font.
  * @throws GeoError - A position is not correct for the projection.
  */
-export function renderMap(map: MapDocument): string {
+export function renderMap(map: MapDocument, options: RenderOptions = {}): string {
   checkMap(map);
+  const font = labelFontOf(map, options);
   const view = frameView(map.frame);
   const { widthMm: w, heightMm: h } = map.frame;
   const defs: string[] = [`<clipPath id="${map.id}-clip"><rect width="${mm(w)}" height="${mm(h)}"/></clipPath>`];
@@ -236,12 +281,14 @@ export function renderMap(map: MapDocument): string {
     defs.push(hatchPattern(id, hatch));
     return `url(#${id})`;
   });
+  const features = map.layers.map((layer) => featuresOf(layer, map.frame));
   const layers = map.layers.map((layer, i) => {
-    const body = featuresOf(layer, map.frame)
+    const body = features[i]!
       .map((feature) => drawGeometry(feature.geometry as Geometry, layer.style, view, fills[i]))
       .join("");
     return `<g id="${map.id}-${layer.id}">${body}</g>`;
   });
+  const labels = font === undefined ? "" : labelsSvg(placementOf(map, features, view, font), font);
 
   const top = h + 2;
   const units = map.scaleBar ?? "both";
@@ -269,7 +316,7 @@ export function renderMap(map: MapDocument): string {
     `role="img" aria-label="${escapeAttribute(map.title)}" font-family="sans-serif">` +
     `<title>${escapeHtml(map.title)}</title><defs>${defs.join("")}</defs>` +
     `<rect width="${mm(w)}" height="${mm(total)}" fill="#ffffff"/>` +
-    `<g clip-path="url(#${map.id}-clip)">${layers.join("")}</g>` +
+    `<g clip-path="url(#${map.id}-clip)">${layers.join("")}</g>${labels}` +
     `<rect width="${mm(w)}" height="${mm(h)}" fill="none" stroke="#000000" stroke-width="0.3"/>` +
     `${arrow}<g class="legend">${scaleBars}${legend}</g><g class="attribution">${attribution}</g></svg>`
   );

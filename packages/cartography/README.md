@@ -39,7 +39,7 @@ const svg = renderMap(map);
 
 | Function | Result |
 | --- | --- |
-| `renderMap(map)` | The SVG of the map, with the scale bars, the legend, the north arrow and the attribution block. |
+| `renderMap(map, options)` | The SVG of the map, with the scale bars, the legend, the north arrow, the labels and the attribution block. |
 | `checkMap(map)` | Nothing. It throws a `MapError` for a map that is not correct. |
 | `frameView(frame)` | The functions between the Earth and the paper, and the direction of north. |
 | `frameBBox(frame)` | The box on the Earth around the frame, for a fetch of the data of a map. |
@@ -47,6 +47,36 @@ const svg = renderMap(map);
 | `checkFilter(value)` | Nothing. It throws a `MapError` for a value that is not a `Filter`. |
 | `attributionLines(map)` | The lines of the attribution block: the scale, the projection and each source. |
 | `scaleBarLength(meters, units)` | The longest round length of a scale bar that is not longer than a length on the ground. |
+| `mapLabels(map, options)` | The labels of the map with their places, and the texts with no place. |
+| `placeLabels(layers, view, font)` | The places of the labels of the layers, with no overlap, inside the frame. |
+| `labelText(rule, feature)` | The text of the label of a feature, or `undefined`. |
+
+## Labels
+
+A layer with a `label` rule shows the names of its features. The labels do not overlap, and each label is inside the frame.
+
+```ts
+import { readFileSync } from "node:fs";
+import { measureWidth, readFont } from "@mark1russell7/typeset/fonts";
+
+const font = readFont(readFileSync("LiberationSans-Regular.ttf"));
+const labelFont = {
+  family: '"Liberation Sans", Arial, sans-serif',
+  measure: (text: string, sizeMm: number) => measureWidth(font, text, sizeMm),
+};
+const roads = { ...layer, label: { properties: ["ref", "name"], sizeMm: 2.5, repeatMm: 80 } };
+const svg = renderMap({ ...map, layers: [roads] }, { labelFont });
+```
+
+- The core has no font tables. The caller gives the font family and a function that measures a text in millimetres.
+- Use the same font for the print. Liberation Sans has the same widths as Arial.
+- A point label goes to the first free place of 8 places around its symbol.
+- A line label goes along an almost straight part of the line, near its middle. `repeatMm` gives more labels on a long line.
+- An area label goes to the middle of the area, when the area has the full box of the text.
+- A layer with a lower `priority` gets its places first. With the same priority, a higher layer is first.
+- The point symbols and the north arrow are obstacles. No label covers them.
+- The render puts the labels above the layers, in black with a white halo.
+- A text with no free place is in the list `skipped` of `mapLabels`. The SVG gives the count in `data-skipped`.
 
 ## Rules
 
@@ -55,7 +85,7 @@ const svg = renderMap(map);
 - The render removes a feature that is not on the frame, and the frame clips each layer.
 - Each identifier in the SVG starts with the identifier of the map. Thus two maps can be in one HTML page.
 - The simplification uses `simplifyRegions` of `@mark1russell7/geo`. A tolerance of 0.2 mm on the paper at 1:24,000 is 4.8 m on the ground.
-- Each refusal is a `MapError` with a code: `frame`, `id`, `filter`, `style` or `source`.
+- Each refusal is a `MapError` with a code: `frame`, `id`, `filter`, `style`, `source` or `label`.
 
 ## License
 

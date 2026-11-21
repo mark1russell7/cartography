@@ -13,7 +13,7 @@
  * - `style`: a style draws nothing, or a size, a gray level or a dash is not correct.
  * - `source`: a layer has no source, or its source has no title or no license.
  */
-export type MapErrorCode = "frame" | "id" | "filter" | "style" | "source";
+export type MapErrorCode = "frame" | "id" | "filter" | "style" | "source" | "label";
 
 /** The error that each function of this package throws for an incorrect map. */
 export class MapError extends Error {
