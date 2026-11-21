@@ -3,6 +3,7 @@ import { azimuthalEquidistant } from "@mark1russell7/geo/projection";
 import { MapError } from "./errors.ts";
 import { frameView, type Frame } from "./frame.ts";
 import { checkLabelRule, labelText, placeLabels, type LabelFont, type LabelLayer, type PlacedLabel } from "./labels.ts";
+import { overlapOf, type Rect } from "@mark1russell7/layout-contract";
 import { mulberry32, seedOf } from "@mark1russell7/rigor-generators";
 import { describe, expect, it } from "vitest";
 import { checkMap, mapLabels, renderMap, type Layer, type MapDocument, type Source } from "./render.ts";
@@ -40,10 +41,10 @@ function only(labels: readonly PlacedLabel[]): PlacedLabel {
   return labels[0]!;
 }
 
-/** This function tells if two labels with the angle 0 overlap, from their boxes. */
-function boxesOverlap(a: PlacedLabel, b: PlacedLabel): boolean {
-  const h = 1.2;
-  return Math.abs(a.x - b.x) < (a.widthMm + b.widthMm) / 2 && Math.abs(a.y - b.y) < (h * a.sizeMm + h * b.sizeMm) / 2;
+/** The box of a label with the angle 0, as a rectangle of `@mark1russell7/layout-contract`. */
+function rectOf(label: PlacedLabel): Rect {
+  const h = 1.2 * label.sizeMm;
+  return { x: label.x - label.widthMm / 2, y: label.y - h / 2, w: label.widthMm, h };
 }
 
 describe("checkLabelRule", () => {
@@ -141,7 +142,12 @@ describe("placeLabels: points", () => {
         expect(label.y - 1.8).toBeGreaterThanOrEqual(0.5 - 1e-9);
         expect(label.y + 1.8).toBeLessThanOrEqual(239.5 + 1e-9);
       }
-      for (let i = 0; i < placed.length; i += 1) for (let j = i + 1; j < placed.length; j += 1) expect(boxesOverlap(placed[i]!, placed[j]!), `round ${round}: ${i} and ${j}`).toBe(false);
+      for (let i = 0; i < placed.length; i += 1) {
+        for (let j = i + 1; j < placed.length; j += 1) {
+          const overlap = overlapOf(rectOf(placed[i]!), rectOf(placed[j]!));
+          expect(Math.min(overlap.x, overlap.y), `round ${round}: ${i} and ${j}`).toBeLessThanOrEqual(1e-9);
+        }
+      }
     }
   });
 });
