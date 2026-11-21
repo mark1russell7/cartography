@@ -1,0 +1,56 @@
+# The public API of @mark1russell7/cartography-emergency
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (dist/index.d.ts): names
+
+EmergencyLayerOptions: dist/index.d.ts#EmergencyLayerOptions
+EvacuationZone: dist/index.d.ts#EvacuationZone
+EvacuationZoneOptions: dist/index.d.ts#EvacuationZoneOptions
+Features: dist/index.d.ts#Features
+MAX_EVACUATION_ZONES: dist/index.d.ts#MAX_EVACUATION_ZONES
+evacuationRouteLayer: dist/index.d.ts#evacuationRouteLayer
+evacuationZoneLayers: dist/index.d.ts#evacuationZoneLayers
+shelterLayer: dist/index.d.ts#shelterLayer
+zoneHatch: dist/index.d.ts#zoneHatch
+
+## Declarations
+
+### dist/index.d.ts#EmergencyLayerOptions
+export interface EmergencyLayerOptions {
+  readonly id?: string;
+  readonly legend?: string;
+}
+
+### dist/index.d.ts#EvacuationZone
+export interface EvacuationZone {
+  readonly value: FilterValue;
+  readonly legend: string;
+}
+
+### dist/index.d.ts#EvacuationZoneOptions
+export interface EvacuationZoneOptions {
+  readonly property: string;
+  readonly zones: readonly EvacuationZone[];
+  readonly source: Source;
+}
+
+### dist/index.d.ts#Features
+export type Features = Layer["features"];
+
+### dist/index.d.ts#MAX_EVACUATION_ZONES
+export declare const MAX_EVACUATION_ZONES = 6;
+
+### dist/index.d.ts#evacuationRouteLayer
+export declare function evacuationRouteLayer(features: Features, source: Source, options?: EmergencyLayerOptions): Layer;
+
+### dist/index.d.ts#evacuationZoneLayers
+export declare function evacuationZoneLayers(features: Features, options: EvacuationZoneOptions): Layer[];
+
+### dist/index.d.ts#shelterLayer
+export declare function shelterLayer(features: Features, source: Source, options?: EmergencyLayerOptions): Layer;
+
+### dist/index.d.ts#zoneHatch
+export declare function zoneHatch(index: number): HatchStyle;
