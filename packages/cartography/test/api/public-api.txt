@@ -13,13 +13,19 @@ type Frame: dist/index.d.ts#Frame
 type FrameView: dist/index.d.ts#FrameView
 type GeometryKind: dist/index.d.ts#GeometryKind
 type HatchStyle: dist/index.d.ts#HatchStyle
+type LabelFont: dist/index.d.ts#LabelFont
+type LabelLayer: dist/index.d.ts#LabelLayer
+type LabelPlacement: dist/index.d.ts#LabelPlacement
+type LabelRule: dist/index.d.ts#LabelRule
 type Layer: dist/index.d.ts#Layer
 type MapDocument: dist/index.d.ts#MapDocument
 MapError: dist/index.d.ts#MapError
 type MapErrorCode: dist/index.d.ts#MapErrorCode
 type PaperPoint: dist/index.d.ts#PaperPoint
+type PlacedLabel: dist/index.d.ts#PlacedLabel
 type PointStyle: dist/index.d.ts#PointStyle
 type PointSymbol: dist/index.d.ts#PointSymbol
+type RenderOptions: dist/index.d.ts#RenderOptions
 SCALE_BAR_ROW_MM: dist/index.d.ts#SCALE_BAR_ROW_MM
 type ScaleBarLength: dist/index.d.ts#ScaleBarLength
 type ScaleBarUnits: dist/index.d.ts#ScaleBarUnits
@@ -29,6 +35,7 @@ type Style: dist/index.d.ts#Style
 attributionLines: dist/index.d.ts#attributionLines
 checkFilter: dist/index.d.ts#checkFilter
 checkFrame: dist/index.d.ts#checkFrame
+checkLabelRule: dist/index.d.ts#checkLabelRule
 checkMap: dist/index.d.ts#checkMap
 checkStyle: dist/index.d.ts#checkStyle
 frameBBox: dist/index.d.ts#frameBBox
@@ -36,10 +43,14 @@ frameView: dist/index.d.ts#frameView
 geometryKind: dist/index.d.ts#geometryKind
 grayColor: dist/index.d.ts#grayColor
 hatchPattern: dist/index.d.ts#hatchPattern
+labelText: dist/index.d.ts#labelText
+labelsSvg: dist/index.d.ts#labelsSvg
+mapLabels: dist/index.d.ts#mapLabels
 matchesFilter: dist/index.d.ts#matchesFilter
 mm: dist/index.d.ts#mm
 niceNumber: dist/index.d.ts#niceNumber
 northArrowSvg: dist/index.d.ts#northArrowSvg
+placeLabels: dist/index.d.ts#placeLabels
 pointSymbol: dist/index.d.ts#pointSymbol
 renderMap: dist/index.d.ts#renderMap
 scaleBarLength: dist/index.d.ts#scaleBarLength
@@ -104,6 +115,37 @@ interface HatchStyle {
   readonly cross?: boolean;
 }
 
+### dist/index.d.ts#LabelFont
+interface LabelFont {
+  readonly family: string;
+  readonly measure: (text: string, sizeMm: number) => number;
+}
+
+### dist/index.d.ts#LabelLayer
+interface LabelLayer {
+  readonly id: string;
+  readonly features: readonly Feature[];
+  readonly label?: LabelRule | undefined;
+  readonly pointSizeMm?: number | undefined;
+}
+
+### dist/index.d.ts#LabelPlacement
+interface LabelPlacement {
+  readonly placed: readonly PlacedLabel[];
+  readonly skipped: readonly {
+    readonly layer: string;
+    readonly text: string;
+  }[];
+}
+
+### dist/index.d.ts#LabelRule
+interface LabelRule {
+  readonly properties: readonly string[];
+  readonly sizeMm: number;
+  readonly priority?: number;
+  readonly repeatMm?: number;
+}
+
 ### dist/index.d.ts#Layer
 interface Layer {
   readonly id: string;
@@ -113,6 +155,7 @@ interface Layer {
   readonly filter?: Filter;
   readonly legend?: string;
   readonly simplifyMm?: number;
+  readonly label?: LabelRule;
 }
 
 ### dist/index.d.ts#MapDocument
@@ -132,12 +175,23 @@ export declare class MapError extends Error {
 }
 
 ### dist/index.d.ts#MapErrorCode
-type MapErrorCode = "frame" | "id" | "filter" | "style" | "source";
+type MapErrorCode = "frame" | "id" | "filter" | "style" | "source" | "label";
 
 ### dist/index.d.ts#PaperPoint
 interface PaperPoint {
   readonly x: number;
   readonly y: number;
+}
+
+### dist/index.d.ts#PlacedLabel
+interface PlacedLabel {
+  readonly layer: string;
+  readonly text: string;
+  readonly x: number;
+  readonly y: number;
+  readonly angle: number;
+  readonly sizeMm: number;
+  readonly widthMm: number;
 }
 
 ### dist/index.d.ts#PointStyle
@@ -149,6 +203,11 @@ interface PointStyle {
 
 ### dist/index.d.ts#PointSymbol
 type PointSymbol = "circle" | "square" | "triangle" | "diamond" | "cross";
+
+### dist/index.d.ts#RenderOptions
+interface RenderOptions {
+  readonly labelFont?: LabelFont;
+}
 
 ### dist/index.d.ts#SCALE_BAR_ROW_MM
 export declare const SCALE_BAR_ROW_MM = 4.5;
@@ -193,6 +252,9 @@ export declare function checkFilter(filter: unknown, path?: string): asserts fil
 ### dist/index.d.ts#checkFrame
 export declare function checkFrame(frame: Frame): void;
 
+### dist/index.d.ts#checkLabelRule
+export declare function checkLabelRule(rule: LabelRule, layer: string): void;
+
 ### dist/index.d.ts#checkMap
 export declare function checkMap(map: MapDocument): void;
 
@@ -214,6 +276,15 @@ export declare function grayColor(gray: number): string;
 ### dist/index.d.ts#hatchPattern
 export declare function hatchPattern(id: string, hatch: HatchStyle): string;
 
+### dist/index.d.ts#labelText
+export declare function labelText(rule: LabelRule, feature: Feature): string | undefined;
+
+### dist/index.d.ts#labelsSvg
+export declare function labelsSvg(placement: LabelPlacement, font: LabelFont): string;
+
+### dist/index.d.ts#mapLabels
+export declare function mapLabels(map: MapDocument, options?: RenderOptions): LabelPlacement;
+
 ### dist/index.d.ts#matchesFilter
 export declare function matchesFilter(filter: Filter, feature: Feature): boolean;
 
@@ -226,11 +297,18 @@ export declare function niceNumber(max: number): number;
 ### dist/index.d.ts#northArrowSvg
 export declare function northArrowSvg(x: number, y: number, northDegrees: number): string;
 
+### dist/index.d.ts#placeLabels
+export declare function placeLabels(layers: readonly LabelLayer[], view: FrameView, font: LabelFont, obstacles?: readonly {
+  x: number;
+  y: number;
+  half: number;
+}[]): LabelPlacement;
+
 ### dist/index.d.ts#pointSymbol
 export declare function pointSymbol(point: PointStyle, x: number, y: number): string;
 
 ### dist/index.d.ts#renderMap
-export declare function renderMap(map: MapDocument): string;
+export declare function renderMap(map: MapDocument, options?: RenderOptions): string;
 
 ### dist/index.d.ts#scaleBarLength
 export declare function scaleBarLength(maxMeters: number, units: "metric" | "imperial"): ScaleBarLength;
