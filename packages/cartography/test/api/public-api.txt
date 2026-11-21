@@ -1,0 +1,242 @@
+# The public API of @mark1russell7/cartography
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (dist/index.d.ts): names
+
+type FillStyle: dist/index.d.ts#FillStyle
+type Filter: dist/index.d.ts#Filter
+type FilterValue: dist/index.d.ts#FilterValue
+type Frame: dist/index.d.ts#Frame
+type FrameView: dist/index.d.ts#FrameView
+type GeometryKind: dist/index.d.ts#GeometryKind
+type HatchStyle: dist/index.d.ts#HatchStyle
+type Layer: dist/index.d.ts#Layer
+type MapDocument: dist/index.d.ts#MapDocument
+MapError: dist/index.d.ts#MapError
+type MapErrorCode: dist/index.d.ts#MapErrorCode
+type PaperPoint: dist/index.d.ts#PaperPoint
+type PointStyle: dist/index.d.ts#PointStyle
+type PointSymbol: dist/index.d.ts#PointSymbol
+SCALE_BAR_ROW_MM: dist/index.d.ts#SCALE_BAR_ROW_MM
+type ScaleBarLength: dist/index.d.ts#ScaleBarLength
+type ScaleBarUnits: dist/index.d.ts#ScaleBarUnits
+type Source: dist/index.d.ts#Source
+type StrokeStyle: dist/index.d.ts#StrokeStyle
+type Style: dist/index.d.ts#Style
+attributionLines: dist/index.d.ts#attributionLines
+checkFilter: dist/index.d.ts#checkFilter
+checkFrame: dist/index.d.ts#checkFrame
+checkMap: dist/index.d.ts#checkMap
+checkStyle: dist/index.d.ts#checkStyle
+frameBBox: dist/index.d.ts#frameBBox
+frameView: dist/index.d.ts#frameView
+geometryKind: dist/index.d.ts#geometryKind
+grayColor: dist/index.d.ts#grayColor
+hatchPattern: dist/index.d.ts#hatchPattern
+matchesFilter: dist/index.d.ts#matchesFilter
+mm: dist/index.d.ts#mm
+niceNumber: dist/index.d.ts#niceNumber
+northArrowSvg: dist/index.d.ts#northArrowSvg
+pointSymbol: dist/index.d.ts#pointSymbol
+renderMap: dist/index.d.ts#renderMap
+scaleBarLength: dist/index.d.ts#scaleBarLength
+scaleBarSvg: dist/index.d.ts#scaleBarSvg
+strokeAttributes: dist/index.d.ts#strokeAttributes
+
+## Declarations
+
+### dist/index.d.ts#FillStyle
+interface FillStyle {
+  readonly gray?: number;
+  readonly hatch?: HatchStyle;
+}
+
+### dist/index.d.ts#Filter
+type Filter = {
+  readonly all: readonly Filter[];
+} | {
+  readonly any: readonly Filter[];
+} | {
+  readonly not: Filter;
+} | {
+  readonly property: string;
+  readonly in: readonly FilterValue[];
+} | {
+  readonly property: string;
+  readonly exists: boolean;
+} | {
+  readonly geometry: GeometryKind;
+};
+
+### dist/index.d.ts#FilterValue
+type FilterValue = string | number | boolean;
+
+### dist/index.d.ts#Frame
+interface Frame {
+  readonly projection: Projection;
+  readonly center: LatLon;
+  readonly scale: number;
+  readonly widthMm: number;
+  readonly heightMm: number;
+}
+
+### dist/index.d.ts#FrameView
+interface FrameView {
+  readonly frame: Frame;
+  readonly mmPerMeter: number;
+  readonly mmPerPlaneMeter: number;
+  readonly toPaper: (point: LatLon) => PaperPoint;
+  readonly fromPaper: (point: PaperPoint) => LatLon;
+  readonly northDegrees: number;
+}
+
+### dist/index.d.ts#GeometryKind
+type GeometryKind = "point" | "line" | "area" | "mixed";
+
+### dist/index.d.ts#HatchStyle
+interface HatchStyle {
+  readonly angleDegrees: number;
+  readonly spacingMm: number;
+  readonly widthMm: number;
+  readonly cross?: boolean;
+}
+
+### dist/index.d.ts#Layer
+interface Layer {
+  readonly id: string;
+  readonly features: readonly Feature[];
+  readonly style: Style;
+  readonly source: Source;
+  readonly filter?: Filter;
+  readonly legend?: string;
+  readonly simplifyMm?: number;
+}
+
+### dist/index.d.ts#MapDocument
+interface MapDocument {
+  readonly id: string;
+  readonly title: string;
+  readonly frame: Frame;
+  readonly layers: readonly Layer[];
+  readonly scaleBar?: ScaleBarUnits;
+  readonly northArrow?: boolean;
+}
+
+### dist/index.d.ts#MapError
+export declare class MapError extends Error {
+  readonly code: MapErrorCode;
+  constructor(code: MapErrorCode, message: string);
+}
+
+### dist/index.d.ts#MapErrorCode
+type MapErrorCode = "frame" | "id" | "filter" | "style" | "source";
+
+### dist/index.d.ts#PaperPoint
+interface PaperPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+### dist/index.d.ts#PointStyle
+interface PointStyle {
+  readonly symbol: PointSymbol;
+  readonly sizeMm: number;
+  readonly filled?: boolean;
+}
+
+### dist/index.d.ts#PointSymbol
+type PointSymbol = "circle" | "square" | "triangle" | "diamond" | "cross";
+
+### dist/index.d.ts#SCALE_BAR_ROW_MM
+export declare const SCALE_BAR_ROW_MM = 4.5;
+
+### dist/index.d.ts#ScaleBarLength
+interface ScaleBarLength {
+  readonly meters: number;
+  readonly label: string;
+}
+
+### dist/index.d.ts#ScaleBarUnits
+type ScaleBarUnits = "metric" | "imperial" | "both" | "none";
+
+### dist/index.d.ts#Source
+interface Source {
+  readonly title: string;
+  readonly license: string;
+  readonly url?: string;
+  readonly date?: string;
+}
+
+### dist/index.d.ts#StrokeStyle
+interface StrokeStyle {
+  readonly widthMm: number;
+  readonly gray?: number;
+  readonly dashMm?: readonly number[];
+}
+
+### dist/index.d.ts#Style
+interface Style {
+  readonly stroke?: StrokeStyle;
+  readonly fill?: FillStyle;
+  readonly point?: PointStyle;
+}
+
+### dist/index.d.ts#attributionLines
+export declare function attributionLines(map: MapDocument): string[];
+
+### dist/index.d.ts#checkFilter
+export declare function checkFilter(filter: unknown, path?: string): asserts filter is Filter;
+
+### dist/index.d.ts#checkFrame
+export declare function checkFrame(frame: Frame): void;
+
+### dist/index.d.ts#checkMap
+export declare function checkMap(map: MapDocument): void;
+
+### dist/index.d.ts#checkStyle
+export declare function checkStyle(style: Style, layer: string): void;
+
+### dist/index.d.ts#frameBBox
+export declare function frameBBox(frame: Frame): BBox;
+
+### dist/index.d.ts#frameView
+export declare function frameView(frame: Frame): FrameView;
+
+### dist/index.d.ts#geometryKind
+export declare function geometryKind(geometry: Geometry): GeometryKind;
+
+### dist/index.d.ts#grayColor
+export declare function grayColor(gray: number): string;
+
+### dist/index.d.ts#hatchPattern
+export declare function hatchPattern(id: string, hatch: HatchStyle): string;
+
+### dist/index.d.ts#matchesFilter
+export declare function matchesFilter(filter: Filter, feature: Feature): boolean;
+
+### dist/index.d.ts#mm
+export declare function mm(value: number): string;
+
+### dist/index.d.ts#niceNumber
+export declare function niceNumber(max: number): number;
+
+### dist/index.d.ts#northArrowSvg
+export declare function northArrowSvg(x: number, y: number, northDegrees: number): string;
+
+### dist/index.d.ts#pointSymbol
+export declare function pointSymbol(point: PointStyle, x: number, y: number): string;
+
+### dist/index.d.ts#renderMap
+export declare function renderMap(map: MapDocument): string;
+
+### dist/index.d.ts#scaleBarLength
+export declare function scaleBarLength(maxMeters: number, units: "metric" | "imperial"): ScaleBarLength;
+
+### dist/index.d.ts#scaleBarSvg
+export declare function scaleBarSvg(x: number, y: number, length: ScaleBarLength, mmPerMeter: number): string;
+
+### dist/index.d.ts#strokeAttributes
+export declare function strokeAttributes(stroke: StrokeStyle): string;
