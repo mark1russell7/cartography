@@ -59,7 +59,14 @@ export interface MapDocument {
   readonly scaleBar?: ScaleBarUnits;
   /** The value `false` gives no north arrow. The default is `true`. */
   readonly northArrow?: boolean;
+  /** The place of the scale bars and the legend. The default is `below`. `fitFrame` finds the place with the largest frame. */
+  readonly legendPlace?: LegendPlace;
 }
+
+/** The place of the scale bars and the legend: below the frame, or in a column at the right side of the frame. */
+export type LegendPlace = "below" | "side";
+
+const LEGEND_PLACES: readonly LegendPlace[] = ["below", "side"];
 
 const ID = /^[a-z][a-z0-9-]*$/;
 
@@ -82,6 +89,9 @@ function checkSource(source: Source | undefined, layer: string): void {
 export function checkMap(map: MapDocument): void {
   checkId(map.id, "map");
   frameView(map.frame);
+  if (map.legendPlace !== undefined && !LEGEND_PLACES.includes(map.legendPlace)) {
+    throw new MapError("style", `The place of the legend "${String(map.legendPlace)}" is not "below" or "side"`);
+  }
   const ids = new Set<string>();
   for (const layer of map.layers) {
     checkId(layer.id, "layer");
@@ -242,6 +252,152 @@ function thousands(value: number): string {
   return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+/** The space between the frame and the column of the legend at the side, in millimetres. */
+const SIDE_GAP_MM = 3;
+/** The space above the first row of the column of the legend at the side, in millimetres. */
+const SIDE_TOP_MM = 1;
+/** The least width of the column of the legend at the side, in millimetres. */
+const SIDE_LEAST_WIDTH_MM = 30;
+/** The space between the scale bars and the legend in the column at the side, in millimetres. */
+const SIDE_GROUP_GAP_MM = 1.5;
+/** The space at the right of a scale bar in the column at the side for its label, in millimetres. */
+const SCALE_LABEL_MM = 12;
+/** The size of the font of the legend texts, in millimetres. */
+const LEGEND_TEXT_MM = 2.4;
+/** The distance from the left side of a swatch to its text, in millimetres. */
+const LEGEND_TEXT_X_MM = 7.5;
+/** The width of a character of a legend text, as a part of the size of the font, when the options have no font. */
+const CHARACTER_WIDTH = 0.6;
+
+/** The parts of the legend of a map, with the space that they use. The size of the frame does not change them. */
+interface LegendLayout {
+  readonly bars: readonly ("metric" | "imperial")[];
+  readonly lines: readonly string[];
+  /** The width of the column at the side, or 0. */
+  readonly columnMm: number;
+  /** The height of the column at the side, or 0. */
+  readonly columnHeightMm: number;
+  /** The height of the block of the scale bars and the legend below the frame, or 0. */
+  readonly blockMm: number;
+}
+
+/** This function gives the font that measures the legend texts: the label font of the options, if it has a measure. */
+function measureFontOf(options: RenderOptions): LabelFont | undefined {
+  const font = options.labelFont;
+  return font !== undefined && typeof font.measure === "function" ? font : undefined;
+}
+
+function legendLayout(map: MapDocument, font: LabelFont | undefined): LegendLayout {
+  const units = map.scaleBar ?? "both";
+  const bars = units === "none" ? [] : units === "both" ? (["metric", "imperial"] as const) : [units];
+  const texts = map.layers.flatMap((layer) => (layer.legend === undefined ? [] : [layer.legend]));
+  const lines = attributionLines(map);
+  const place = map.legendPlace ?? "below";
+  if (place === "below" || bars.length + texts.length === 0) {
+    const blockMm = place === "below" ? Math.max(bars.length, Math.ceil(texts.length / 2)) * SCALE_BAR_ROW_MM : 0;
+    return { bars, lines, columnMm: 0, columnHeightMm: 0, blockMm };
+  }
+  const width = (text: string): number => (font === undefined ? text.length * LEGEND_TEXT_MM * CHARACTER_WIDTH : font.measure(text, LEGEND_TEXT_MM));
+  const widest = Math.max(0, ...texts.map(width));
+  const columnMm = Math.max(SIDE_LEAST_WIDTH_MM, LEGEND_TEXT_X_MM + widest + 1);
+  const gap = bars.length > 0 && texts.length > 0 ? SIDE_GROUP_GAP_MM : 0;
+  const columnHeightMm = SIDE_TOP_MM + (bars.length + texts.length) * SCALE_BAR_ROW_MM + gap;
+  return { bars, lines, columnMm, columnHeightMm, blockMm: 0 };
+}
+
+/** The space of the SVG of a map around its frame, in millimetres. */
+export interface MapMargins {
+  /** The width at the right of the frame: the gap and the column of the legend at the side, or 0. */
+  readonly rightMm: number;
+  /** The height below the frame: the legend below the frame, if it is there, and the attribution block. */
+  readonly belowMm: number;
+  /** The height of the column of the legend at the side, or 0. A frame with less height makes the SVG taller. */
+  readonly leastHeightMm: number;
+}
+
+function marginsOf(layout: LegendLayout): MapMargins {
+  return {
+    rightMm: layout.columnMm === 0 ? 0 : SIDE_GAP_MM + layout.columnMm,
+    belowMm: 2 + layout.blockMm + 2.5 + (layout.lines.length - 1) * 3 + 1.5,
+    leastHeightMm: layout.columnHeightMm,
+  };
+}
+
+/**
+ * This function gives the space of the SVG of a map around its frame, for the place of the legend of the map. The
+ * size of the frame does not change it.
+ *
+ * - The label font of the options measures the legend texts. With no font, each character is 0.6 of the size of the font.
+ * - The SVG of the map is `rightMm` wider and `belowMm` taller than its frame.
+ *
+ * @throws MapError - The map is not correct, as `checkMap` tells.
+ */
+export function mapMargins(map: MapDocument, options: RenderOptions = {}): MapMargins {
+  checkMap(map);
+  return marginsOf(legendLayout(map, measureFontOf(options)));
+}
+
+/** A space for the SVG of a map, in millimetres, for example the printable area of a paper. */
+export interface MapSpace {
+  readonly widthMm: number;
+  readonly heightMm: number;
+}
+
+/** The options of `fitFrame`. */
+export interface FitOptions {
+  /** The font of the labels. It also measures the legend texts. */
+  readonly labelFont?: LabelFont;
+  /** The places of the legend to examine. The default is `below` and `side`. */
+  readonly places?: readonly LegendPlace[];
+  /** The value `true` also examines the space with a quarter turn, for example a paper in landscape. The default is `false`. */
+  readonly turn?: boolean;
+}
+
+/** The frame with the largest area for a map in a space. */
+export interface FrameFit {
+  readonly widthMm: number;
+  readonly heightMm: number;
+  readonly legendPlace: LegendPlace;
+  /** The value `true` tells that the frame is for the space with a quarter turn. */
+  readonly turned: boolean;
+}
+
+/**
+ * This function gives the frame with the largest area for a map in a space, and the place of its legend. The SVG of
+ * the map with that frame and that place fits the space.
+ *
+ * - The scale of the map does not change, so a larger frame shows more ground.
+ * - The size of the frame of the map does not change the result.
+ * - With two places of equal area, the first place of the options wins. The space with no turn wins over the turned space.
+ *
+ * @throws MapError - The map is not correct, a place is not correct, the space is not correct, or no place leaves space for a frame.
+ */
+export function fitFrame(map: MapDocument, space: MapSpace, options: FitOptions = {}): FrameFit {
+  checkMap(map);
+  const { widthMm, heightMm } = space;
+  if (![widthMm, heightMm].every((value) => Number.isFinite(value) && value > 0)) {
+    throw new MapError("frame", `The space ${widthMm} by ${heightMm} mm is not two finite numbers more than 0`);
+  }
+  const places = options.places ?? LEGEND_PLACES;
+  const spaces = options.turn === true ? [{ w: widthMm, h: heightMm, turned: false }, { w: heightMm, h: widthMm, turned: true }] : [{ w: widthMm, h: heightMm, turned: false }];
+  const font = measureFontOf(options);
+  let best: FrameFit | undefined;
+  for (const place of places) {
+    if (!LEGEND_PLACES.includes(place)) throw new MapError("style", `The place of the legend "${String(place)}" is not "below" or "side"`);
+    const margins = marginsOf(legendLayout({ ...map, legendPlace: place }, font));
+    for (const { w, h, turned } of spaces) {
+      const frameWidth = w - margins.rightMm;
+      const frameHeight = h - margins.belowMm;
+      if (!(frameWidth > 0 && frameHeight > 0 && frameHeight >= margins.leastHeightMm)) continue;
+      if (best === undefined || frameWidth * frameHeight > best.widthMm * best.heightMm) {
+        best = { widthMm: frameWidth, heightMm: frameHeight, legendPlace: place, turned };
+      }
+    }
+  }
+  if (best === undefined) throw new MapError("frame", `The space ${widthMm} by ${heightMm} mm has no space for a frame after the legend`);
+  return best;
+}
+
 /** This function gives the lines of the attribution block: the scale, the projection and each source one time. */
 export function attributionLines(map: MapDocument): string[] {
   const lines = [`Scale 1:${thousands(map.frame.scale)} at the center. Projection: ${map.frame.projection.name}.`];
@@ -259,6 +415,8 @@ export function attributionLines(map: MapDocument): string[] {
  * This function gives the SVG of a map. The units of the SVG are millimetres, for a print at the scale of the frame.
  *
  * - The map is at the top. Below it are the scale bars, the legend and the attribution block.
+ * - With the place `side`, the scale bars and the legend are in a column at the right of the frame. The attribution
+ *   block stays below.
  * - The layers are in their sequence, from the bottom to the top. The frame clips each layer.
  * - A feature that is not on the frame is not in the SVG.
  * - Each identifier in the SVG starts with the identifier of the map. Thus two maps can be in one HTML page.
@@ -290,32 +448,39 @@ export function renderMap(map: MapDocument, options: RenderOptions = {}): string
   });
   const labels = font === undefined ? "" : labelsSvg(placementOf(map, features, view, font), font);
 
-  const top = h + 2;
-  const units = map.scaleBar ?? "both";
-  const bars = units === "none" ? [] : units === "both" ? (["metric", "imperial"] as const) : [units];
-  const maxMeters = (0.3 * w) / view.mmPerMeter;
-  const scaleBars = bars.map((unit, i) => scaleBarSvg(0.5, top + i * SCALE_BAR_ROW_MM, scaleBarLength(maxMeters, unit), view.mmPerMeter)).join("");
-  const legendLayers = map.layers.flatMap((layer, i) => (layer.legend === undefined ? [] : [{ layer, fill: fills[i] }]));
-  const columnWidth = w * 0.275;
-  const legend = legendLayers
-    .map(({ layer, fill }, i) => {
-      const x = w * 0.45 + (i % 2) * columnWidth;
-      const y = top + Math.floor(i / 2) * SCALE_BAR_ROW_MM - 1;
-      return `${swatch(layer.style, x, y, fill)}<text x="${mm(x + 7.5)}" y="${mm(y + 2.9)}" font-size="2.4">${escapeHtml(layer.legend!)}</text>`;
+  const layout = legendLayout(map, measureFontOf(options));
+  const side = layout.columnMm > 0;
+  const { bars, lines } = layout;
+  const top = (side ? Math.max(h, layout.columnHeightMm) : h) + 2;
+  const sideX = w + SIDE_GAP_MM;
+  const maxMeters = (side ? layout.columnMm - SCALE_LABEL_MM : 0.3 * w) / view.mmPerMeter;
+  const scaleBars = bars
+    .map((unit, i) => {
+      const length = scaleBarLength(maxMeters, unit);
+      return side ? scaleBarSvg(sideX, SIDE_TOP_MM + i * SCALE_BAR_ROW_MM, length, view.mmPerMeter) : scaleBarSvg(0.5, top + i * SCALE_BAR_ROW_MM, length, view.mmPerMeter);
     })
     .join("");
-  const blockHeight = Math.max(bars.length, Math.ceil(legendLayers.length / 2)) * SCALE_BAR_ROW_MM;
-  const lines = attributionLines(map);
-  const firstLine = top + blockHeight + 2.5;
+  const legendLayers = map.layers.flatMap((layer, i) => (layer.legend === undefined ? [] : [{ layer, fill: fills[i] }]));
+  const columnWidth = w * 0.275;
+  const sideTop = SIDE_TOP_MM + bars.length * SCALE_BAR_ROW_MM + (bars.length > 0 ? SIDE_GROUP_GAP_MM : 0);
+  const legend = legendLayers
+    .map(({ layer, fill }, i) => {
+      const x = side ? sideX : w * 0.45 + (i % 2) * columnWidth;
+      const y = side ? sideTop + i * SCALE_BAR_ROW_MM : top + Math.floor(i / 2) * SCALE_BAR_ROW_MM - 1;
+      return `${swatch(layer.style, x, y, fill)}<text x="${mm(x + LEGEND_TEXT_X_MM)}" y="${mm(y + 2.9)}" font-size="${LEGEND_TEXT_MM}">${escapeHtml(layer.legend!)}</text>`;
+    })
+    .join("");
+  const firstLine = top + layout.blockMm + 2.5;
   const attribution = lines.map((line, i) => `<text x="0.5" y="${mm(firstLine + i * 3)}" font-size="2.2">${escapeHtml(line)}</text>`).join("");
   const total = firstLine + (lines.length - 1) * 3 + 1.5;
+  const width = side ? sideX + layout.columnMm : w;
   const arrow = map.northArrow === false ? "" : northArrowSvg(w - 6.5, 6.5, view.northDegrees);
 
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${mm(w)}mm" height="${mm(total)}mm" viewBox="0 0 ${mm(w)} ${mm(total)}" ` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${mm(width)}mm" height="${mm(total)}mm" viewBox="0 0 ${mm(width)} ${mm(total)}" ` +
     `role="img" aria-label="${escapeAttribute(map.title)}" font-family="sans-serif">` +
     `<title>${escapeHtml(map.title)}</title><defs>${defs.join("")}</defs>` +
-    `<rect width="${mm(w)}" height="${mm(total)}" fill="#ffffff"/>` +
+    `<rect width="${mm(width)}" height="${mm(total)}" fill="#ffffff"/>` +
     `<g clip-path="url(#${map.id}-clip)">${layers.join("")}</g>${labels}` +
     `<rect width="${mm(w)}" height="${mm(h)}" fill="none" stroke="#000000" stroke-width="0.3"/>` +
     `${arrow}<g class="legend">${scaleBars}${legend}</g><g class="attribution">${attribution}</g></svg>`

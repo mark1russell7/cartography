@@ -9,7 +9,9 @@
 type FillStyle: dist/index.d.ts#FillStyle
 type Filter: dist/index.d.ts#Filter
 type FilterValue: dist/index.d.ts#FilterValue
+type FitOptions: dist/index.d.ts#FitOptions
 type Frame: dist/index.d.ts#Frame
+type FrameFit: dist/index.d.ts#FrameFit
 type FrameView: dist/index.d.ts#FrameView
 type GeometryKind: dist/index.d.ts#GeometryKind
 type HatchStyle: dist/index.d.ts#HatchStyle
@@ -18,9 +20,12 @@ type LabelLayer: dist/index.d.ts#LabelLayer
 type LabelPlacement: dist/index.d.ts#LabelPlacement
 type LabelRule: dist/index.d.ts#LabelRule
 type Layer: dist/index.d.ts#Layer
+type LegendPlace: dist/index.d.ts#LegendPlace
 type MapDocument: dist/index.d.ts#MapDocument
 MapError: dist/index.d.ts#MapError
 type MapErrorCode: dist/index.d.ts#MapErrorCode
+type MapMargins: dist/index.d.ts#MapMargins
+type MapSpace: dist/index.d.ts#MapSpace
 type PaperPoint: dist/index.d.ts#PaperPoint
 type PlacedLabel: dist/index.d.ts#PlacedLabel
 type PointStyle: dist/index.d.ts#PointStyle
@@ -38,6 +43,7 @@ checkFrame: dist/index.d.ts#checkFrame
 checkLabelRule: dist/index.d.ts#checkLabelRule
 checkMap: dist/index.d.ts#checkMap
 checkStyle: dist/index.d.ts#checkStyle
+fitFrame: dist/index.d.ts#fitFrame
 frameBBox: dist/index.d.ts#frameBBox
 frameView: dist/index.d.ts#frameView
 geometryKind: dist/index.d.ts#geometryKind
@@ -46,6 +52,7 @@ hatchPattern: dist/index.d.ts#hatchPattern
 labelText: dist/index.d.ts#labelText
 labelsSvg: dist/index.d.ts#labelsSvg
 mapLabels: dist/index.d.ts#mapLabels
+mapMargins: dist/index.d.ts#mapMargins
 matchesFilter: dist/index.d.ts#matchesFilter
 mm: dist/index.d.ts#mm
 niceNumber: dist/index.d.ts#niceNumber
@@ -85,6 +92,13 @@ type Filter = {
 ### dist/index.d.ts#FilterValue
 type FilterValue = string | number | boolean;
 
+### dist/index.d.ts#FitOptions
+interface FitOptions {
+  readonly labelFont?: LabelFont;
+  readonly places?: readonly LegendPlace[];
+  readonly turn?: boolean;
+}
+
 ### dist/index.d.ts#Frame
 interface Frame {
   readonly projection: Projection;
@@ -92,6 +106,14 @@ interface Frame {
   readonly scale: number;
   readonly widthMm: number;
   readonly heightMm: number;
+}
+
+### dist/index.d.ts#FrameFit
+interface FrameFit {
+  readonly widthMm: number;
+  readonly heightMm: number;
+  readonly legendPlace: LegendPlace;
+  readonly turned: boolean;
 }
 
 ### dist/index.d.ts#FrameView
@@ -158,6 +180,9 @@ interface Layer {
   readonly label?: LabelRule;
 }
 
+### dist/index.d.ts#LegendPlace
+type LegendPlace = "below" | "side";
+
 ### dist/index.d.ts#MapDocument
 interface MapDocument {
   readonly id: string;
@@ -166,6 +191,7 @@ interface MapDocument {
   readonly layers: readonly Layer[];
   readonly scaleBar?: ScaleBarUnits;
   readonly northArrow?: boolean;
+  readonly legendPlace?: LegendPlace;
 }
 
 ### dist/index.d.ts#MapError
@@ -176,6 +202,19 @@ export declare class MapError extends Error {
 
 ### dist/index.d.ts#MapErrorCode
 type MapErrorCode = "frame" | "id" | "filter" | "style" | "source" | "label";
+
+### dist/index.d.ts#MapMargins
+interface MapMargins {
+  readonly rightMm: number;
+  readonly belowMm: number;
+  readonly leastHeightMm: number;
+}
+
+### dist/index.d.ts#MapSpace
+interface MapSpace {
+  readonly widthMm: number;
+  readonly heightMm: number;
+}
 
 ### dist/index.d.ts#PaperPoint
 interface PaperPoint {
@@ -261,6 +300,9 @@ export declare function checkMap(map: MapDocument): void;
 ### dist/index.d.ts#checkStyle
 export declare function checkStyle(style: Style, layer: string): void;
 
+### dist/index.d.ts#fitFrame
+export declare function fitFrame(map: MapDocument, space: MapSpace, options?: FitOptions): FrameFit;
+
 ### dist/index.d.ts#frameBBox
 export declare function frameBBox(frame: Frame): BBox;
 
@@ -284,6 +326,9 @@ export declare function labelsSvg(placement: LabelPlacement, font: LabelFont): s
 
 ### dist/index.d.ts#mapLabels
 export declare function mapLabels(map: MapDocument, options?: RenderOptions): LabelPlacement;
+
+### dist/index.d.ts#mapMargins
+export declare function mapMargins(map: MapDocument, options?: RenderOptions): MapMargins;
 
 ### dist/index.d.ts#matchesFilter
 export declare function matchesFilter(filter: Filter, feature: Feature): boolean;

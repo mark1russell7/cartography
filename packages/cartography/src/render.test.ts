@@ -2,7 +2,7 @@ import type { Feature, Geometry, LatLon, Position } from "@mark1russell7/geo";
 import { azimuthalEquidistant } from "@mark1russell7/geo/projection";
 import { describe, expect, it } from "vitest";
 import { MapError } from "./errors.ts";
-import { attributionLines, checkMap, renderMap, type Layer, type MapDocument, type Source } from "./render.ts";
+import { attributionLines, checkMap, fitFrame, mapMargins, renderMap, type Layer, type MapDocument, type Source } from "./render.ts";
 
 // A made-up town at a made-up center. It is not the place of a person.
 const CENTER: LatLon = { lat: 45, lon: 10 };
@@ -120,6 +120,126 @@ describe("renderMap", () => {
   });
 });
 
+function sizeOf(svg: string): { width: number; height: number } {
+  const match = /^<svg [^>]*?width="([\d.]+)mm" height="([\d.]+)mm"/.exec(svg);
+  expect(match).not.toBeNull();
+  return { width: Number(match![1]), height: Number(match![2]) };
+}
+
+// A made-up font: each character is two times the size of the font.
+const WIDE_FONT = { family: "Test Sans", measure: (text: string, sizeMm: number): number => text.length * sizeMm * 2 };
+
+describe("mapMargins", () => {
+  it("gives the space below the frame for the legend below", () => {
+    // Two scale bars and three legend entries in two columns give two rows. The attribution block has three lines.
+    expect(mapMargins(map(LAYERS))).toEqual({ rightMm: 0, belowMm: 2 + 2 * 4.5 + 2.5 + 2 * 3 + 1.5, leastHeightMm: 0 });
+    expect(sizeOf(renderMap(map(LAYERS)))).toEqual({ width: 180, height: 240 + 21 });
+  });
+
+  it("gives the column at the side, with an estimate of the widths of the texts when the options have no font", () => {
+    // The widest text is "Main road": 9 characters of 0.6 of 2.4 mm. That is less than the least width of 30 mm.
+    expect(mapMargins(map(LAYERS, { legendPlace: "side" }))).toEqual({ rightMm: 3 + 30, belowMm: 2 + 2.5 + 2 * 3 + 1.5, leastHeightMm: 1 + 5 * 4.5 + 1.5 });
+  });
+
+  it("measures the legend texts with the label font of the options", () => {
+    const margins = mapMargins(map(LAYERS, { legendPlace: "side" }), { labelFont: WIDE_FONT });
+    expect(margins.rightMm).toBeCloseTo(3 + 7.5 + 9 * 2.4 * 2 + 1, 9);
+  });
+
+  it("does not change with the size of the frame", () => {
+    for (const legendPlace of ["below", "side"] as const) {
+      const small = map(LAYERS, { legendPlace });
+      const large: MapDocument = { ...small, frame: { ...small.frame, widthMm: 600, heightMm: 900 } };
+      expect(mapMargins(large)).toEqual(mapMargins(small));
+    }
+  });
+
+  it("gives no column when the map has no scale bar and no legend", () => {
+    const plain = map([{ ...LAYERS[1]!, legend: undefined as never }], { scaleBar: "none", legendPlace: "side" });
+    expect(mapMargins(plain)).toEqual({ rightMm: 0, belowMm: 2 + 2.5 + 1 * 3 + 1.5, leastHeightMm: 0 });
+  });
+});
+
+describe("renderMap with the legend at the side", () => {
+  const side = map(LAYERS, { legendPlace: "side" });
+  const svg = renderMap(side);
+
+  it("makes the SVG wider by the column, and keeps the attribution block below the frame", () => {
+    const margins = mapMargins(side);
+    expect(sizeOf(svg)).toEqual({ width: 180 + margins.rightMm, height: 240 + margins.belowMm });
+    expect(svg).toContain(`<text x="0.5" y="${240 + 4.5}" font-size="2.2">Scale 1:24,000 at the center. Projection: Azimuthal equidistant.</text>`);
+  });
+
+  it("puts the scale bars and the legend in the column at the right of the frame", () => {
+    expect(svg.match(/class="scale-bar"/g)).toHaveLength(2);
+    const bar = /<g class="scale-bar"><rect x="([\d.]+)" y="([\d.]+)"/.exec(svg)!;
+    expect(Number(bar[1])).toBe(183);
+    expect(Number(bar[2])).toBe(1);
+    expect(svg).toContain(`<text x="190.5" y="${1 + 2 * 4.5 + 1.5 + 2.9}" font-size="2.4">Park</text>`);
+    expect(svg).toContain(`<text x="190.5" y="${1 + 3 * 4.5 + 1.5 + 2.9}" font-size="2.4">Main road</text>`);
+  });
+
+  it("keeps each scale bar and its label in the column", () => {
+    // The bar of 1:24,000 is at most 18 mm, the column minus 12 mm for the label.
+    for (const match of svg.matchAll(/<g class="scale-bar">(.*?)<\/g>/g)) {
+      const xs = [...match[1]!.matchAll(/<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)"/g)].map((rect) => Number(rect[1]) + Number(rect[2]));
+      expect(Math.max(...xs)).toBeLessThanOrEqual(183 + 30 - 12 + 0.02);
+    }
+  });
+
+  it("makes the SVG taller when the frame is shorter than the column", () => {
+    const short: MapDocument = { ...side, frame: { ...side.frame, heightMm: 10 } };
+    const margins = mapMargins(short);
+    expect(sizeOf(renderMap(short)).height).toBeCloseTo(margins.leastHeightMm + margins.belowMm, 2);
+  });
+});
+
+describe("fitFrame", () => {
+  const below = 21;
+  const sideRight = 33;
+  const sideBelow = 12;
+
+  it("gives the place of the legend with the largest frame", () => {
+    // 200 by 300 mm: below gives 200 by 279 mm, the side gives 167 by 288 mm.
+    expect(fitFrame(map(LAYERS), { widthMm: 200, heightMm: 300 })).toEqual({ widthMm: 200, heightMm: 300 - below, legendPlace: "below", turned: false });
+    // 400 by 60 mm: below gives 400 by 39 mm, the side gives 367 by 48 mm.
+    expect(fitFrame(map(LAYERS), { widthMm: 400, heightMm: 60 })).toEqual({ widthMm: 400 - sideRight, heightMm: 60 - sideBelow, legendPlace: "side", turned: false });
+  });
+
+  it("examines only the places of the options", () => {
+    expect(fitFrame(map(LAYERS), { widthMm: 200, heightMm: 300 }, { places: ["side"] })).toEqual({ widthMm: 167, heightMm: 288, legendPlace: "side", turned: false });
+  });
+
+  it("examines the space with a quarter turn when the options ask for it", () => {
+    // 300 by 100 mm gives 300 by 79 mm. With a quarter turn, it gives 100 by 279 mm.
+    const space = { widthMm: 300, heightMm: 100 };
+    expect(fitFrame(map(LAYERS), space, { places: ["below"] }).turned).toBe(false);
+    expect(fitFrame(map(LAYERS), space, { places: ["below"], turn: true })).toEqual({ widthMm: 100, heightMm: 300 - below, legendPlace: "below", turned: true });
+  });
+
+  it("gives a frame whose SVG fills the space", () => {
+    for (const space of [{ widthMm: 200, heightMm: 300 }, { widthMm: 400, heightMm: 60 }]) {
+      const fit = fitFrame(map(LAYERS), space, { labelFont: WIDE_FONT });
+      const fitted = map(LAYERS, { legendPlace: fit.legendPlace });
+      const size = sizeOf(renderMap({ ...fitted, frame: { ...fitted.frame, widthMm: fit.widthMm, heightMm: fit.heightMm } }, { labelFont: WIDE_FONT }));
+      expect(size.width).toBeCloseTo(space.widthMm, 1);
+      expect(size.height).toBeCloseTo(space.heightMm, 1);
+    }
+  });
+
+  it("skips the side when the frame is shorter than the column", () => {
+    // 100 by 30 mm: the side gives a frame of 18 mm, less than the column of 25 mm.
+    expect(fitFrame(map(LAYERS), { widthMm: 100, heightMm: 30 }).legendPlace).toBe("below");
+    expect(() => fitFrame(map(LAYERS), { widthMm: 100, heightMm: 30 }, { places: ["side"] })).toThrow(expect.objectContaining({ code: "frame" }));
+  });
+
+  it("refuses a space or a place that is not correct", () => {
+    expect(() => fitFrame(map(LAYERS), { widthMm: 0, heightMm: 300 })).toThrow(expect.objectContaining({ code: "frame" }));
+    expect(() => fitFrame(map(LAYERS), { widthMm: Number.NaN, heightMm: 300 })).toThrow(MapError);
+    expect(() => fitFrame(map(LAYERS), { widthMm: 200, heightMm: 300 }, { places: ["top" as never] })).toThrow(expect.objectContaining({ code: "style" }));
+  });
+});
+
 describe("attributionLines", () => {
   it("names each source one time, with its license, its address and its date", () => {
     expect(attributionLines(map(LAYERS))).toEqual([
@@ -150,5 +270,10 @@ describe("checkMap", () => {
     expect(() => checkMap(map([{ ...roads, style: {} }]))).toThrow(expect.objectContaining({ code: "style" }));
     expect(() => checkMap(map([{ ...roads, simplifyMm: 0 }]))).toThrow(MapError);
     expect(() => checkMap(map(LAYERS))).not.toThrow();
+  });
+
+  it("refuses a place of the legend that is not below or side", () => {
+    expect(() => checkMap(map(LAYERS, { legendPlace: "top" as never }))).toThrow(expect.objectContaining({ code: "style" }));
+    expect(() => checkMap(map(LAYERS, { legendPlace: "side" }))).not.toThrow();
   });
 });
