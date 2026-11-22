@@ -12,8 +12,10 @@
  * - `filter`: a filter is not one of the forms of `Filter`.
  * - `style`: a style draws nothing, or a size, a gray level or a dash is not correct.
  * - `source`: a layer has no source, or its source has no title or no license.
+ * - `label`: a label rule, a label font or an edge text is not correct.
+ * - `atlas`: the radius or the overlap of an atlas is not correct.
  */
-export type MapErrorCode = "frame" | "id" | "filter" | "style" | "source" | "label";
+export type MapErrorCode = "frame" | "id" | "filter" | "style" | "source" | "label" | "atlas";
 
 /** The error that each function of this package throws for an incorrect map. */
 export class MapError extends Error {

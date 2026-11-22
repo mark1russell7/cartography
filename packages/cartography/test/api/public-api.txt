@@ -6,11 +6,19 @@
 
 ## . (dist/index.d.ts): names
 
+ATLAS_OVERLAP_MM: dist/index.d.ts#ATLAS_OVERLAP_MM
+type Atlas: dist/index.d.ts#Atlas
+type AtlasPage: dist/index.d.ts#AtlasPage
+type AtlasPlan: dist/index.d.ts#AtlasPlan
+EDGE_TEXT_MM: dist/index.d.ts#EDGE_TEXT_MM
+type EdgeMark: dist/index.d.ts#EdgeMark
+FRAME_EDGES: dist/index.d.ts#FRAME_EDGES
 type FillStyle: dist/index.d.ts#FillStyle
 type Filter: dist/index.d.ts#Filter
 type FilterValue: dist/index.d.ts#FilterValue
 type FitOptions: dist/index.d.ts#FitOptions
 type Frame: dist/index.d.ts#Frame
+type FrameEdge: dist/index.d.ts#FrameEdge
 type FrameFit: dist/index.d.ts#FrameFit
 type FrameView: dist/index.d.ts#FrameView
 type GeometryKind: dist/index.d.ts#GeometryKind
@@ -37,12 +45,17 @@ type ScaleBarUnits: dist/index.d.ts#ScaleBarUnits
 type Source: dist/index.d.ts#Source
 type StrokeStyle: dist/index.d.ts#StrokeStyle
 type Style: dist/index.d.ts#Style
+atlasIndexFrame: dist/index.d.ts#atlasIndexFrame
+atlasOutlines: dist/index.d.ts#atlasOutlines
+atlasPages: dist/index.d.ts#atlasPages
 attributionLines: dist/index.d.ts#attributionLines
 checkFilter: dist/index.d.ts#checkFilter
 checkFrame: dist/index.d.ts#checkFrame
 checkLabelRule: dist/index.d.ts#checkLabelRule
 checkMap: dist/index.d.ts#checkMap
 checkStyle: dist/index.d.ts#checkStyle
+columnName: dist/index.d.ts#columnName
+edgeMarks: dist/index.d.ts#edgeMarks
 fitFrame: dist/index.d.ts#fitFrame
 frameBBox: dist/index.d.ts#frameBBox
 frameView: dist/index.d.ts#frameView
@@ -65,6 +78,53 @@ scaleBarSvg: dist/index.d.ts#scaleBarSvg
 strokeAttributes: dist/index.d.ts#strokeAttributes
 
 ## Declarations
+
+### dist/index.d.ts#ATLAS_OVERLAP_MM
+export declare const ATLAS_OVERLAP_MM = 10;
+
+### dist/index.d.ts#Atlas
+interface Atlas {
+  readonly plan: AtlasPlan;
+  readonly columns: number;
+  readonly rows: number;
+  readonly pages: readonly AtlasPage[];
+}
+
+### dist/index.d.ts#AtlasPage
+interface AtlasPage {
+  readonly id: string;
+  readonly column: number;
+  readonly row: number;
+  readonly frame: Frame;
+  readonly neighbors: Readonly<Partial<Record<FrameEdge, string>>>;
+}
+
+### dist/index.d.ts#AtlasPlan
+interface AtlasPlan {
+  readonly projection: Projection;
+  readonly center: LatLon;
+  readonly radiusMeters: number;
+  readonly scale: number;
+  readonly widthMm: number;
+  readonly heightMm: number;
+  readonly overlapMm?: number | undefined;
+}
+
+### dist/index.d.ts#EDGE_TEXT_MM
+export declare const EDGE_TEXT_MM = 2.6;
+
+### dist/index.d.ts#EdgeMark
+interface EdgeMark {
+  readonly edge: FrameEdge;
+  readonly x: number;
+  readonly y: number;
+  readonly halfWidth: number;
+  readonly halfHeight: number;
+  readonly svg: string;
+}
+
+### dist/index.d.ts#FRAME_EDGES
+export declare const FRAME_EDGES: readonly FrameEdge[];
 
 ### dist/index.d.ts#FillStyle
 interface FillStyle {
@@ -106,6 +166,9 @@ interface Frame {
   readonly widthMm: number;
   readonly heightMm: number;
 }
+
+### dist/index.d.ts#FrameEdge
+type FrameEdge = "top" | "right" | "bottom" | "left";
 
 ### dist/index.d.ts#FrameFit
 interface FrameFit {
@@ -191,6 +254,7 @@ interface MapDocument {
   readonly scaleBar?: ScaleBarUnits;
   readonly northArrow?: boolean;
   readonly legendPlace?: LegendPlace;
+  readonly edges?: Readonly<Partial<Record<FrameEdge, string>>>;
 }
 
 ### dist/index.d.ts#MapError
@@ -200,7 +264,7 @@ export declare class MapError extends Error {
 }
 
 ### dist/index.d.ts#MapErrorCode
-type MapErrorCode = "frame" | "id" | "filter" | "style" | "source" | "label";
+type MapErrorCode = "frame" | "id" | "filter" | "style" | "source" | "label" | "atlas";
 
 ### dist/index.d.ts#MapMargins
 interface MapMargins {
@@ -281,6 +345,15 @@ interface Style {
   readonly point?: PointStyle;
 }
 
+### dist/index.d.ts#atlasIndexFrame
+export declare function atlasIndexFrame(atlas: Atlas, widthMm: number, heightMm: number): Frame;
+
+### dist/index.d.ts#atlasOutlines
+export declare function atlasOutlines(atlas: Atlas, pointsPerEdge?: number): Feature[];
+
+### dist/index.d.ts#atlasPages
+export declare function atlasPages(plan: AtlasPlan): Atlas;
+
 ### dist/index.d.ts#attributionLines
 export declare function attributionLines(map: MapDocument): string[];
 
@@ -298,6 +371,12 @@ export declare function checkMap(map: MapDocument): void;
 
 ### dist/index.d.ts#checkStyle
 export declare function checkStyle(style: Style, layer: string): void;
+
+### dist/index.d.ts#columnName
+export declare function columnName(index: number): string;
+
+### dist/index.d.ts#edgeMarks
+export declare function edgeMarks(widthMm: number, heightMm: number, texts: Readonly<Partial<Record<FrameEdge, string>>>, measure: (text: string) => number): EdgeMark[];
 
 ### dist/index.d.ts#fitFrame
 export declare function fitFrame(map: MapDocument, spaces: readonly MapSpace[], options?: FitOptions): FrameFit;
@@ -346,6 +425,7 @@ export declare function placeLabels(layers: readonly LabelLayer[], view: FrameVi
   x: number;
   y: number;
   half: number;
+  halfHeight?: number;
 }[]): LabelPlacement;
 
 ### dist/index.d.ts#pointSymbol

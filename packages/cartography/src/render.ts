@@ -10,7 +10,7 @@ import { MapError } from "./errors.ts";
 import { checkFilter, matchesFilter, type Filter } from "./filter.ts";
 import { frameView, type Frame, type FrameView, type PaperPoint } from "./frame.ts";
 import { checkLabelRule, labelsSvg, placeLabels, type LabelFont, type LabelPlacement, type LabelRule } from "./labels.ts";
-import { northArrowSvg, SCALE_BAR_ROW_MM, scaleBarLength, scaleBarSvg, type ScaleBarUnits } from "./marks.ts";
+import { EDGE_TEXT_MM, edgeMarks, FRAME_EDGES, northArrowSvg, SCALE_BAR_ROW_MM, scaleBarLength, scaleBarSvg, type EdgeMark, type FrameEdge, type ScaleBarUnits } from "./marks.ts";
 import { checkStyle, grayColor, hatchPattern, mm, pointSymbol, strokeAttributes, type Style } from "./style.ts";
 
 /** The source of the data of a layer. The map prints each source in its attribution block. */
@@ -61,6 +61,11 @@ export interface MapDocument {
   readonly northArrow?: boolean;
   /** The place of the scale bars and the legend. The default is `below`. `fitFrame` finds the place with the largest frame. */
   readonly legendPlace?: LegendPlace;
+  /**
+   * The texts at the middle of the edges of the frame, for example the names of the neighbor pages of an atlas.
+   * Each text is in a white box with an arrow that points out of the frame. No labels cover the boxes.
+   */
+  readonly edges?: Readonly<Partial<Record<FrameEdge, string>>>;
 }
 
 /** The place of the scale bars and the legend: below the frame, or in a column at the right side of the frame. */
@@ -103,6 +108,13 @@ export function checkMap(map: MapDocument): void {
     if (layer.label !== undefined) checkLabelRule(layer.label, layer.id);
     if (layer.simplifyMm !== undefined && !(Number.isFinite(layer.simplifyMm) && layer.simplifyMm > 0)) {
       throw new MapError("style", `The layer "${layer.id}": the tolerance ${layer.simplifyMm} is not a finite number more than 0`);
+    }
+  }
+  if (map.edges !== undefined) {
+    if (typeof map.edges !== "object" || map.edges === null) throw new MapError("label", "The edge texts of the map are not an object");
+    for (const [edge, text] of Object.entries(map.edges)) {
+      if (!(FRAME_EDGES as readonly string[]).includes(edge)) throw new MapError("label", `The edge "${edge}" is not top, right, bottom or left`);
+      if (text !== undefined && (typeof text !== "string" || text.trim() === "")) throw new MapError("label", `The text of the edge "${edge}" is not a text that is not empty`);
     }
   }
 }
@@ -208,8 +220,17 @@ export interface RenderOptions {
 /** The middle of the north arrow, from the top right corner of the frame, and the half size of its box, in millimetres. */
 const NORTH_ARROW = { inset: 6.5, half: 4.7 };
 
+/** This function gives the marks of the edge texts of a map. Without a font, the width of a text is an estimate. */
+function edgeMarksOf(map: MapDocument, font: LabelFont | undefined): EdgeMark[] {
+  const measure = (text: string): number => (font === undefined ? text.length * EDGE_TEXT_MM * CHARACTER_WIDTH : font.measure(text, EDGE_TEXT_MM));
+  return edgeMarks(map.frame.widthMm, map.frame.heightMm, map.edges ?? {}, measure);
+}
+
 function placementOf(map: MapDocument, features: readonly Feature[][], view: FrameView, font: LabelFont): LabelPlacement {
-  const obstacles = map.northArrow === false ? [] : [{ x: map.frame.widthMm - NORTH_ARROW.inset, y: NORTH_ARROW.inset, half: NORTH_ARROW.half }];
+  const obstacles = [
+    ...(map.northArrow === false ? [] : [{ x: map.frame.widthMm - NORTH_ARROW.inset, y: NORTH_ARROW.inset, half: NORTH_ARROW.half }]),
+    ...edgeMarksOf(map, font).map((mark) => ({ x: mark.x, y: mark.y, half: mark.halfWidth, halfHeight: mark.halfHeight })),
+  ];
   const layers = map.layers.map((layer, i) => ({ id: layer.id, features: features[i]!, label: layer.label, pointSizeMm: layer.style.point?.sizeMm }));
   return placeLabels(layers, view, font, obstacles);
 }
@@ -474,6 +495,9 @@ export function renderMap(map: MapDocument, options: RenderOptions = {}): string
   const total = firstLine + (lines.length - 1) * 3 + 1.5;
   const width = side ? sideX + layout.columnMm : w;
   const arrow = map.northArrow === false ? "" : northArrowSvg(w - 6.5, 6.5, view.northDegrees);
+  const edges = edgeMarksOf(map, measureFontOf(options))
+    .map((mark) => mark.svg)
+    .join("");
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${mm(width)}mm" height="${mm(total)}mm" viewBox="0 0 ${mm(width)} ${mm(total)}" ` +
@@ -482,7 +506,7 @@ export function renderMap(map: MapDocument, options: RenderOptions = {}): string
     `<rect width="${mm(width)}" height="${mm(total)}" fill="#ffffff"/>` +
     `<g clip-path="url(#${map.id}-clip)">${layers.join("")}</g>${labels}` +
     `<rect width="${mm(w)}" height="${mm(h)}" fill="none" stroke="#000000" stroke-width="0.3"/>` +
-    `${arrow}<g class="legend">${scaleBars}${legend}</g><g class="attribution">${attribution}</g></svg>`
+    `${arrow}${edges}<g class="legend">${scaleBars}${legend}</g><g class="attribution">${attribution}</g></svg>`
   );
 }
 
