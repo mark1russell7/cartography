@@ -6,6 +6,16 @@
  * @packageDocumentation
  */
 
+export {
+  ATLAS_OVERLAP_MM,
+  atlasIndexFrame,
+  atlasOutlines,
+  atlasPages,
+  columnName,
+  type Atlas,
+  type AtlasPage,
+  type AtlasPlan,
+} from "./atlas.ts";
 export { MapError, type MapErrorCode } from "./errors.ts";
 export { checkFilter, geometryKind, matchesFilter, type Filter, type FilterValue, type GeometryKind } from "./filter.ts";
 export { checkFrame, frameBBox, frameView, type Frame, type FrameView, type PaperPoint } from "./frame.ts";
@@ -20,7 +30,20 @@ export {
   type LabelRule,
   type PlacedLabel,
 } from "./labels.ts";
-export { niceNumber, northArrowSvg, SCALE_BAR_ROW_MM, scaleBarLength, scaleBarSvg, type ScaleBarLength, type ScaleBarUnits } from "./marks.ts";
+export {
+  EDGE_TEXT_MM,
+  edgeMarks,
+  FRAME_EDGES,
+  niceNumber,
+  northArrowSvg,
+  SCALE_BAR_ROW_MM,
+  scaleBarLength,
+  scaleBarSvg,
+  type EdgeMark,
+  type FrameEdge,
+  type ScaleBarLength,
+  type ScaleBarUnits,
+} from "./marks.ts";
 export {
   attributionLines,
   checkMap,

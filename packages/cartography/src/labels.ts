@@ -336,12 +336,12 @@ interface Job {
  * - Each point symbol of the layers and the north arrow are obstacles too.
  * - A text with a part on the frame and no free place is in `skipped`. A text with no part on the frame is in neither list.
  *
- * @param obstacles - The boxes on the paper that no label covers, as the middle and the half size in millimetres.
+ * @param obstacles - The boxes on the paper that no label covers, as the middle and the half size in millimetres. A box with `halfHeight` has the half width `half`.
  * @throws MapError - The code is `label`: the width of a text from `measure` is not a finite number of 0 or more.
  */
-export function placeLabels(layers: readonly LabelLayer[], view: FrameView, font: LabelFont, obstacles: readonly { x: number; y: number; half: number }[] = []): LabelPlacement {
+export function placeLabels(layers: readonly LabelLayer[], view: FrameView, font: LabelFont, obstacles: readonly { x: number; y: number; half: number; halfHeight?: number }[] = []): LabelPlacement {
   const room = new Room(view.frame.widthMm, view.frame.heightMm);
-  for (const o of obstacles) room.boxes.push({ x: o.x, y: o.y, hw: o.half, hh: o.half, angle: 0 });
+  for (const o of obstacles) room.boxes.push({ x: o.x, y: o.y, hw: o.half, hh: o.halfHeight ?? o.half, angle: 0 });
   for (const layer of layers) {
     if (layer.pointSizeMm === undefined) continue;
     const out: { points: Position[]; lines: (readonly Position[])[]; areas: Polygon[] } = { points: [], lines: [], areas: [] };

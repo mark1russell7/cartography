@@ -34,6 +34,7 @@ const svg = renderMap(map);
 | Filter | `Filter` | Data, so a map can be JSON: `all`, `any`, `not`, `property` with `in` or `exists`, and `geometry`. |
 | Style | `Style` | Black, white and gray only: lines with dashes, areas with gray levels and hatches, and point symbols. |
 | Source | `Source` | A title and a license. Each layer must have a source. The attribution block names each source one time. |
+| Edge texts | `edges` | A text at the middle of an edge of the frame, for example the name of the neighbor page in an atlas. |
 
 ## The functions
 
@@ -52,6 +53,9 @@ const svg = renderMap(map);
 | `fitFrame(map, spaces, options)` | The frame with the largest area in one of a list of spaces, for example a paper, and the place of its legend. |
 | `placeLabels(layers, view, font)` | The places of the labels of the layers, with no overlap, inside the frame. |
 | `labelText(rule, feature)` | The text of the label of a feature, or `undefined`. |
+| `atlasPages(plan)` | The pages of an atlas of a large area at one scale, with the names of their neighbor pages. |
+| `atlasOutlines(atlas)` | The outline of each page of an atlas as a polygon feature, for an index map. |
+| `atlasIndexFrame(atlas, widthMm, heightMm)` | The frame of an index map that shows all the pages of an atlas. |
 
 ## Labels
 
@@ -76,7 +80,7 @@ const svg = renderMap({ ...map, layers: [roads] }, { labelFont });
 - A line label goes along an almost straight part of the line, near its middle. `repeatMm` gives more labels on a long line.
 - An area label goes to the middle of the area, when the area has the full box of the text.
 - A layer with a lower `priority` gets its places first. With the same priority, a higher layer is first.
-- The point symbols and the north arrow are obstacles. No label covers them.
+- The point symbols, the north arrow and the edge texts are obstacles. No label covers them.
 - The render puts the labels above the layers, in black with a white halo.
 - A text with no free place is in the list `skipped` of `mapLabels`. The SVG gives the count in `data-skipped`.
 
@@ -109,3 +113,28 @@ const svg = renderMap({ ...map, frame, legendPlace: fit.legendPlace }, { labelFo
 - The place `side` puts them in one column at the right of the frame. The attribution block stays below the frame.
 - `mapMargins` gives the space around the frame for each place. The label font measures the legend texts.
 - `fit.space` is the index of the space of the frame. In this example, the value 1 tells to print the map in landscape.
+
+## An atlas of a large area
+
+An area that is too large for one page at a good scale goes on the pages of an atlas. `atlasPages` gives a grid of frames on the plane of one projection.
+
+```ts
+// A made-up center. The circle of 25 km at 1:63,360 on pages with a map of 190 by 230 mm.
+const center = { lat: 45, lon: 10 };
+const atlas = atlasPages({ projection: azimuthalEquidistant(center), center, radiusMeters: 25_000, scale: 63_360, widthMm: 190, heightMm: 230 });
+for (const page of atlas.pages) {
+  // page.id is the name of the page, for example "C2". page.neighbors.right is the name of the page at its right edge.
+  const edges = Object.fromEntries(Object.entries(page.neighbors).map(([edge, id]) => [edge, `Page ${id}`]));
+  const svg = renderMap({ ...map, frame: page.frame, edges }, { labelFont });
+}
+const index = atlasIndexFrame(atlas, 190, 120);
+const pagesLayer = { id: "pages", features: atlasOutlines(atlas), style: outlineStyle, source, label: { properties: ["id"], sizeMm: 4 } };
+```
+
+- The grid has its middle at the center of the area. It has the smallest number of columns and rows that shows the full circle.
+- Neighbor pages share a strip of `overlapMm` at their common edge. The default is 10 mm.
+- A page of the grid that shows no part of the circle is not in the atlas. Its neighbors do not name it.
+- The columns have the letters A, B and the next letters from the west. The rows have the numbers 1, 2 and the next numbers from the north.
+- Each page has the scale of the plan at its own center. With one azimuthal equidistant projection over 50 km, the edges of neighbor pages agree to 0.01 mm.
+- The field `edges` of a map puts a text at the middle of each edge of the frame, with an arrow. No label covers it.
+- `atlasOutlines` gives each outline with the name of its page in the property `id`. A label rule can show the names on the index map.
