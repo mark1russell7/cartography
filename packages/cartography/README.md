@@ -48,6 +48,8 @@ const svg = renderMap(map);
 | `attributionLines(map)` | The lines of the attribution block: the scale, the projection and each source. |
 | `scaleBarLength(meters, units)` | The longest round length of a scale bar that is not longer than a length on the ground. |
 | `mapLabels(map, options)` | The labels of the map with their places, and the texts with no place. |
+| `mapMargins(map, options)` | The space of the SVG around the frame: the column at the right, the block below, and the least height of the frame. |
+| `fitFrame(map, spaces, options)` | The frame with the largest area in one of a list of spaces, for example a paper, and the place of its legend. |
 | `placeLabels(layers, view, font)` | The places of the labels of the layers, with no overlap, inside the frame. |
 | `labelText(rule, feature)` | The text of the label of a feature, or `undefined`. |
 
@@ -90,3 +92,20 @@ const svg = renderMap({ ...map, layers: [roads] }, { labelFont });
 ## License
 
 MIT
+
+## A map that fills a paper
+
+`fitFrame` gives the frame with the largest area in one of a list of spaces, and the place of the legend. The scale does not change, so a larger frame shows more ground.
+
+```ts
+// A paper of 24 by 36 in with a margin of 0.5 in, upright and in landscape, below a heading of 50 mm.
+const spaces = [{ widthMm: 584.2, heightMm: 889 - 50 }, { widthMm: 889, heightMm: 584.2 - 50 }];
+const fit = fitFrame(map, spaces, { labelFont });
+const frame = { ...map.frame, widthMm: fit.widthMm, heightMm: fit.heightMm };
+const svg = renderMap({ ...map, frame, legendPlace: fit.legendPlace }, { labelFont });
+```
+
+- The place `below` puts the scale bars and the legend in two columns below the frame. This is the default.
+- The place `side` puts them in one column at the right of the frame. The attribution block stays below the frame.
+- `mapMargins` gives the space around the frame for each place. The label font measures the legend texts.
+- `fit.space` is the index of the space of the frame. In this example, the value 1 tells to print the map in landscape.

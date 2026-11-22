@@ -21,7 +21,23 @@ export {
   type PlacedLabel,
 } from "./labels.ts";
 export { niceNumber, northArrowSvg, SCALE_BAR_ROW_MM, scaleBarLength, scaleBarSvg, type ScaleBarLength, type ScaleBarUnits } from "./marks.ts";
-export { attributionLines, checkMap, mapLabels, renderMap, type Layer, type MapDocument, type RenderOptions, type Source } from "./render.ts";
+export {
+  attributionLines,
+  checkMap,
+  fitFrame,
+  mapLabels,
+  mapMargins,
+  renderMap,
+  type FitOptions,
+  type FrameFit,
+  type Layer,
+  type LegendPlace,
+  type MapDocument,
+  type MapMargins,
+  type MapSpace,
+  type RenderOptions,
+  type Source,
+} from "./render.ts";
 export {
   checkStyle,
   grayColor,
