@@ -96,7 +96,6 @@ type FilterValue = string | number | boolean;
 interface FitOptions {
   readonly labelFont?: LabelFont;
   readonly places?: readonly LegendPlace[];
-  readonly turn?: boolean;
 }
 
 ### dist/index.d.ts#Frame
@@ -113,7 +112,7 @@ interface FrameFit {
   readonly widthMm: number;
   readonly heightMm: number;
   readonly legendPlace: LegendPlace;
-  readonly turned: boolean;
+  readonly space: number;
 }
 
 ### dist/index.d.ts#FrameView
@@ -301,7 +300,7 @@ export declare function checkMap(map: MapDocument): void;
 export declare function checkStyle(style: Style, layer: string): void;
 
 ### dist/index.d.ts#fitFrame
-export declare function fitFrame(map: MapDocument, space: MapSpace, options?: FitOptions): FrameFit;
+export declare function fitFrame(map: MapDocument, spaces: readonly MapSpace[], options?: FitOptions): FrameFit;
 
 ### dist/index.d.ts#frameBBox
 export declare function frameBBox(frame: Frame): BBox;

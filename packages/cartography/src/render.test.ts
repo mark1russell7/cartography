@@ -201,25 +201,26 @@ describe("fitFrame", () => {
 
   it("gives the place of the legend with the largest frame", () => {
     // 200 by 300 mm: below gives 200 by 279 mm, the side gives 167 by 288 mm.
-    expect(fitFrame(map(LAYERS), { widthMm: 200, heightMm: 300 })).toEqual({ widthMm: 200, heightMm: 300 - below, legendPlace: "below", turned: false });
+    expect(fitFrame(map(LAYERS), [{ widthMm: 200, heightMm: 300 }])).toEqual({ widthMm: 200, heightMm: 300 - below, legendPlace: "below", space: 0 });
     // 400 by 60 mm: below gives 400 by 39 mm, the side gives 367 by 48 mm.
-    expect(fitFrame(map(LAYERS), { widthMm: 400, heightMm: 60 })).toEqual({ widthMm: 400 - sideRight, heightMm: 60 - sideBelow, legendPlace: "side", turned: false });
+    expect(fitFrame(map(LAYERS), [{ widthMm: 400, heightMm: 60 }])).toEqual({ widthMm: 400 - sideRight, heightMm: 60 - sideBelow, legendPlace: "side", space: 0 });
   });
 
   it("examines only the places of the options", () => {
-    expect(fitFrame(map(LAYERS), { widthMm: 200, heightMm: 300 }, { places: ["side"] })).toEqual({ widthMm: 167, heightMm: 288, legendPlace: "side", turned: false });
+    expect(fitFrame(map(LAYERS), [{ widthMm: 200, heightMm: 300 }], { places: ["side"] })).toEqual({ widthMm: 167, heightMm: 288, legendPlace: "side", space: 0 });
   });
 
-  it("examines the space with a quarter turn when the options ask for it", () => {
-    // 300 by 100 mm gives 300 by 79 mm. With a quarter turn, it gives 100 by 279 mm.
-    const space = { widthMm: 300, heightMm: 100 };
-    expect(fitFrame(map(LAYERS), space, { places: ["below"] }).turned).toBe(false);
-    expect(fitFrame(map(LAYERS), space, { places: ["below"], turn: true })).toEqual({ widthMm: 100, heightMm: 300 - below, legendPlace: "below", turned: true });
+  it("gives the space of the largest frame from a list of spaces", () => {
+    // A paper with a heading of 20 mm: 300 by 100 mm gives a frame of 300 by 59 mm. In portrait, 100 by 280 mm gives 100 by 259 mm.
+    const spaces = [{ widthMm: 300, heightMm: 100 - 20 }, { widthMm: 100, heightMm: 300 - 20 }];
+    expect(fitFrame(map(LAYERS), spaces.slice(0, 1), { places: ["below"] }).space).toBe(0);
+    expect(fitFrame(map(LAYERS), spaces, { places: ["below"] })).toEqual({ widthMm: 100, heightMm: 280 - below, legendPlace: "below", space: 1 });
+    expect(() => fitFrame(map(LAYERS), [])).toThrow(expect.objectContaining({ code: "frame" }));
   });
 
   it("gives a frame whose SVG fills the space", () => {
     for (const space of [{ widthMm: 200, heightMm: 300 }, { widthMm: 400, heightMm: 60 }]) {
-      const fit = fitFrame(map(LAYERS), space, { labelFont: WIDE_FONT });
+      const fit = fitFrame(map(LAYERS), [space], { labelFont: WIDE_FONT });
       const fitted = map(LAYERS, { legendPlace: fit.legendPlace });
       const size = sizeOf(renderMap({ ...fitted, frame: { ...fitted.frame, widthMm: fit.widthMm, heightMm: fit.heightMm } }, { labelFont: WIDE_FONT }));
       expect(size.width).toBeCloseTo(space.widthMm, 1);
@@ -229,14 +230,14 @@ describe("fitFrame", () => {
 
   it("skips the side when the frame is shorter than the column", () => {
     // 100 by 30 mm: the side gives a frame of 18 mm, less than the column of 25 mm.
-    expect(fitFrame(map(LAYERS), { widthMm: 100, heightMm: 30 }).legendPlace).toBe("below");
-    expect(() => fitFrame(map(LAYERS), { widthMm: 100, heightMm: 30 }, { places: ["side"] })).toThrow(expect.objectContaining({ code: "frame" }));
+    expect(fitFrame(map(LAYERS), [{ widthMm: 100, heightMm: 30 }]).legendPlace).toBe("below");
+    expect(() => fitFrame(map(LAYERS), [{ widthMm: 100, heightMm: 30 }], { places: ["side"] })).toThrow(expect.objectContaining({ code: "frame" }));
   });
 
   it("refuses a space or a place that is not correct", () => {
-    expect(() => fitFrame(map(LAYERS), { widthMm: 0, heightMm: 300 })).toThrow(expect.objectContaining({ code: "frame" }));
-    expect(() => fitFrame(map(LAYERS), { widthMm: Number.NaN, heightMm: 300 })).toThrow(MapError);
-    expect(() => fitFrame(map(LAYERS), { widthMm: 200, heightMm: 300 }, { places: ["top" as never] })).toThrow(expect.objectContaining({ code: "style" }));
+    expect(() => fitFrame(map(LAYERS), [{ widthMm: 200, heightMm: 300 }, { widthMm: 0, heightMm: 300 }])).toThrow(expect.objectContaining({ code: "frame" }));
+    expect(() => fitFrame(map(LAYERS), [{ widthMm: Number.NaN, heightMm: 300 }])).toThrow(MapError);
+    expect(() => fitFrame(map(LAYERS), [{ widthMm: 200, heightMm: 300 }], { places: ["top" as never] })).toThrow(expect.objectContaining({ code: "style" }));
   });
 });
 

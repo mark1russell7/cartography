@@ -337,7 +337,7 @@ export function mapMargins(map: MapDocument, options: RenderOptions = {}): MapMa
   return marginsOf(legendLayout(map, measureFontOf(options)));
 }
 
-/** A space for the SVG of a map, in millimetres, for example the printable area of a paper. */
+/** A space for the SVG of a map, in millimetres, for example the printable area of a paper below a heading. */
 export interface MapSpace {
   readonly widthMm: number;
   readonly heightMm: number;
@@ -349,52 +349,51 @@ export interface FitOptions {
   readonly labelFont?: LabelFont;
   /** The places of the legend to examine. The default is `below` and `side`. */
   readonly places?: readonly LegendPlace[];
-  /** The value `true` also examines the space with a quarter turn, for example a paper in landscape. The default is `false`. */
-  readonly turn?: boolean;
 }
 
-/** The frame with the largest area for a map in a space. */
+/** The frame with the largest area for a map in one of a list of spaces. */
 export interface FrameFit {
   readonly widthMm: number;
   readonly heightMm: number;
   readonly legendPlace: LegendPlace;
-  /** The value `true` tells that the frame is for the space with a quarter turn. */
-  readonly turned: boolean;
+  /** The index of the space of the frame in the list of spaces. */
+  readonly space: number;
 }
 
 /**
- * This function gives the frame with the largest area for a map in a space, and the place of its legend. The SVG of
- * the map with that frame and that place fits the space.
+ * This function gives the frame with the largest area for a map in one of a list of spaces, and the place of its
+ * legend. The SVG of the map with that frame and that place fits that space.
  *
+ * - Give one space for each choice of the caller, for example a paper upright and the same paper in landscape.
  * - The scale of the map does not change, so a larger frame shows more ground.
  * - The size of the frame of the map does not change the result.
- * - With two places of equal area, the first place of the options wins. The space with no turn wins over the turned space.
+ * - With two choices of equal area, the first place of the options wins, and then the first space.
  *
- * @throws MapError - The map is not correct, a place is not correct, the space is not correct, or no place leaves space for a frame.
+ * @throws MapError - The map is not correct, a place or a space is not correct, or no choice leaves space for a frame.
  */
-export function fitFrame(map: MapDocument, space: MapSpace, options: FitOptions = {}): FrameFit {
+export function fitFrame(map: MapDocument, spaces: readonly MapSpace[], options: FitOptions = {}): FrameFit {
   checkMap(map);
-  const { widthMm, heightMm } = space;
-  if (![widthMm, heightMm].every((value) => Number.isFinite(value) && value > 0)) {
-    throw new MapError("frame", `The space ${widthMm} by ${heightMm} mm is not two finite numbers more than 0`);
+  for (const { widthMm, heightMm } of spaces) {
+    if (![widthMm, heightMm].every((value) => Number.isFinite(value) && value > 0)) {
+      throw new MapError("frame", `The space ${widthMm} by ${heightMm} mm is not two finite numbers more than 0`);
+    }
   }
   const places = options.places ?? LEGEND_PLACES;
-  const spaces = options.turn === true ? [{ w: widthMm, h: heightMm, turned: false }, { w: heightMm, h: widthMm, turned: true }] : [{ w: widthMm, h: heightMm, turned: false }];
   const font = measureFontOf(options);
   let best: FrameFit | undefined;
   for (const place of places) {
     if (!LEGEND_PLACES.includes(place)) throw new MapError("style", `The place of the legend "${String(place)}" is not "below" or "side"`);
     const margins = marginsOf(legendLayout({ ...map, legendPlace: place }, font));
-    for (const { w, h, turned } of spaces) {
-      const frameWidth = w - margins.rightMm;
-      const frameHeight = h - margins.belowMm;
+    for (const [index, { widthMm, heightMm }] of spaces.entries()) {
+      const frameWidth = widthMm - margins.rightMm;
+      const frameHeight = heightMm - margins.belowMm;
       if (!(frameWidth > 0 && frameHeight > 0 && frameHeight >= margins.leastHeightMm)) continue;
       if (best === undefined || frameWidth * frameHeight > best.widthMm * best.heightMm) {
-        best = { widthMm: frameWidth, heightMm: frameHeight, legendPlace: place, turned };
+        best = { widthMm: frameWidth, heightMm: frameHeight, legendPlace: place, space: index };
       }
     }
   }
-  if (best === undefined) throw new MapError("frame", `The space ${widthMm} by ${heightMm} mm has no space for a frame after the legend`);
+  if (best === undefined) throw new MapError("frame", "No space of the list has space for a frame after the legend");
   return best;
 }
 

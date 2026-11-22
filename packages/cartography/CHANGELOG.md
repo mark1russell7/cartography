@@ -4,7 +4,7 @@
 
 - The field `legendPlace` of a map puts the scale bars and the legend below the frame (the default) or in a column at the right side.
 - `mapMargins` gives the space of the SVG around the frame. The size of the frame does not change it.
-- `fitFrame` gives the frame with the largest area in a space, and the place of the legend. It can also examine the space with a quarter turn.
+- `fitFrame` gives the frame with the largest area in one of a list of spaces, and the place of the legend. A list can have a paper upright and in landscape.
 
 ## 0.1.0
 
