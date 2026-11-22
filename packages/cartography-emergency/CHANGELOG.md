@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- The add-on uses the core `@mark1russell7/cartography` 0.1.2. The add-on does not change.
+
 ## 0.1.1
 
 - The add-on uses the core `@mark1russell7/cartography` 0.1.1. The add-on does not change.
