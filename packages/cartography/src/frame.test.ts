@@ -1,5 +1,6 @@
 import { geodesicDirect, geodesicInverse, type LatLon } from "@mark1russell7/geo";
 import { azimuthalEquidistant, WEB_MERCATOR } from "@mark1russell7/geo/projection";
+import { mulberry32, seedOf } from "@mark1russell7/rigor-generators";
 import { describe, expect, it } from "vitest";
 import { MapError } from "./errors.ts";
 import { frameAround, frameBBox, frameView, niceScale, type Frame } from "./frame.ts";
@@ -152,5 +153,94 @@ describe("frameAround", () => {
     expect(() => frameAround([west, east], { ...options, marginMm: -1 })).toThrow(/margin/);
     expect(() => frameAround([west, east], { ...options, widthMm: 0 })).toThrow(MapError);
     expect(() => frameAround([west, west], options)).toThrow(/at the center/);
+  });
+
+  describe("with no height", () => {
+    // A made-up box of approximately 8 km by 4.4 km. It is not the place of a person.
+    const box = { south: 44.98, west: 9.95, north: 45.02, east: 10.05 };
+    const middle = (box.west + box.east) / 2;
+    const samples: LatLon[] = [
+      { lat: box.south, lon: box.west },
+      { lat: box.south, lon: box.east },
+      { lat: box.north, lon: box.west },
+      { lat: box.north, lon: box.east },
+      { lat: box.north, lon: middle },
+      { lat: box.south, lon: middle },
+    ];
+
+    it("fits the width exactly: the extreme points are on the left and right edges", () => {
+      const frame = frameAround(samples, { projection: azimuthalEquidistant, widthMm: 180, roundScale: false });
+      expect(frame.widthMm).toBe(180);
+      const xs = samples.map((point) => frameView(frame).toPaper(point).x);
+      expect(Math.min(...xs)).toBeCloseTo(0, 6);
+      expect(Math.max(...xs)).toBeCloseTo(180, 6);
+    });
+
+    it("gives the height from the extent of the points in y, rounded up to a whole millimetre", () => {
+      const frame = frameAround(samples, { projection: azimuthalEquidistant, widthMm: 180, roundScale: false });
+      const view = frameView(frame);
+      const ys = samples.map((point) => view.toPaper(point).y);
+      const middleY = frame.heightMm / 2;
+      const reach = Math.max(...ys.map((y) => Math.abs(y - middleY)));
+      expect(Number.isInteger(frame.heightMm)).toBe(true);
+      expect(frame.heightMm).toBeGreaterThanOrEqual(2 * reach - 1e-6);
+      expect(frame.heightMm).toBeLessThan(2 * reach + 1);
+      // The box is approximately 4.45 km by 7.88 km, so the height is approximately 180 * 4.45 / 7.88 mm.
+      expect(frame.heightMm).toBeGreaterThan(95);
+      expect(frame.heightMm).toBeLessThan(110);
+      for (const y of ys) {
+        expect(y).toBeGreaterThanOrEqual(-1e-6);
+        expect(y).toBeLessThanOrEqual(frame.heightMm + 1e-6);
+      }
+    });
+
+    it("adds the margins to the height, and keeps each point inside the margin with a round scale", () => {
+      const frame = frameAround(samples, { projection: azimuthalEquidistant, widthMm: 180, marginMm: 10 });
+      expect(frame.scale).toBe(niceScale(frame.scale));
+      const view = frameView(frame);
+      for (const point of samples) {
+        const paper = view.toPaper(point);
+        expect(paper.x).toBeGreaterThanOrEqual(10 - 1e-6);
+        expect(paper.x).toBeLessThanOrEqual(170 + 1e-6);
+        expect(paper.y).toBeGreaterThanOrEqual(10 - 1e-6);
+        expect(paper.y).toBeLessThanOrEqual(frame.heightMm - 10 + 1e-6);
+      }
+    });
+
+    it("fits seeded boxes into seeded widths", () => {
+      const random = mulberry32(seedOf("cartography frame around with no height"));
+      for (let round = 0; round < 50; round += 1) {
+        const south = -60 + random() * 110;
+        const west = -170 + random() * 330;
+        const north = south + 0.01 + random() * 2;
+        const east = west + 0.01 + random() * 2;
+        const center = (west + east) / 2;
+        const points: LatLon[] = [
+          { lat: south, lon: west },
+          { lat: south, lon: east },
+          { lat: north, lon: west },
+          { lat: north, lon: east },
+          { lat: north, lon: center },
+          { lat: south, lon: center },
+        ];
+        const width = 50 + random() * 400;
+        const frame = frameAround(points, { projection: azimuthalEquidistant, widthMm: width, roundScale: false });
+        const view = frameView(frame);
+        const paper = points.map((point) => view.toPaper(point));
+        expect(Math.min(...paper.map((p) => p.x)), `round ${round}`).toBeCloseTo(0, 6);
+        expect(Math.max(...paper.map((p) => p.x)), `round ${round}`).toBeCloseTo(width, 6);
+        for (const p of paper) {
+          expect(p.y, `round ${round}`).toBeGreaterThanOrEqual(-1e-6);
+          expect(p.y, `round ${round}`).toBeLessThanOrEqual(frame.heightMm + 1e-6);
+        }
+      }
+    });
+
+    it("refuses points on one vertical line, and a frame with no height", () => {
+      const north: LatLon = { lat: 10.9, lon: 10 };
+      expect(() => frameAround([west, north], { projection: azimuthalEquidistant, widthMm: 100 })).toThrow(/vertical line/);
+      // On Web Mercator, two points of one latitude have the same y, so the frame has no height.
+      expect(() => frameAround([west, east], { projection: () => WEB_MERCATOR, widthMm: 100, roundScale: false })).toThrow(/height/);
+    });
   });
 });

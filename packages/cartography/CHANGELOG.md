@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4
+
+- The option `heightMm` of `frameAround` is optional. With no height, the scale fits the width, and the height follows from the points.
+- `geometryPath` gives the SVG path data of a line or an area on the paper of a frame. `renderMap` uses the same path data.
+- The new type `PathOptions` has the count of decimals of the path data. The default is 2.
+
 ## 0.1.3
 
 - `frameAround` gives the frame with the largest scale that shows a list of points inside a margin. The center is the middle of their box, or a given point.

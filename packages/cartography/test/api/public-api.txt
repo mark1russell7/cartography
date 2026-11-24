@@ -37,6 +37,7 @@ type MapMargins: dist/index.d.ts#MapMargins
 type MapSpace: dist/index.d.ts#MapSpace
 NICE_SCALE_STEPS: dist/index.d.ts#NICE_SCALE_STEPS
 type PaperPoint: dist/index.d.ts#PaperPoint
+type PathOptions: dist/index.d.ts#PathOptions
 type PlacedLabel: dist/index.d.ts#PlacedLabel
 type PointStyle: dist/index.d.ts#PointStyle
 type PointSymbol: dist/index.d.ts#PointSymbol
@@ -63,6 +64,7 @@ frameAround: dist/index.d.ts#frameAround
 frameBBox: dist/index.d.ts#frameBBox
 frameView: dist/index.d.ts#frameView
 geometryKind: dist/index.d.ts#geometryKind
+geometryPath: dist/index.d.ts#geometryPath
 grayColor: dist/index.d.ts#grayColor
 hatchPattern: dist/index.d.ts#hatchPattern
 labelText: dist/index.d.ts#labelText
@@ -175,7 +177,7 @@ interface Frame {
 interface FrameAroundOptions {
   readonly projection: (center: LatLon) => Projection;
   readonly widthMm: number;
-  readonly heightMm: number;
+  readonly heightMm?: number;
   readonly marginMm?: number;
   readonly center?: LatLon;
   readonly roundScale?: boolean;
@@ -302,6 +304,11 @@ interface PaperPoint {
   readonly y: number;
 }
 
+### dist/index.d.ts#PathOptions
+interface PathOptions {
+  readonly decimals?: number;
+}
+
 ### dist/index.d.ts#PlacedLabel
 interface PlacedLabel {
   readonly layer: string;
@@ -409,6 +416,9 @@ export declare function frameView(frame: Frame): FrameView;
 
 ### dist/index.d.ts#geometryKind
 export declare function geometryKind(geometry: Geometry): GeometryKind;
+
+### dist/index.d.ts#geometryPath
+export declare function geometryPath(view: FrameView, geometry: Geometry, options?: PathOptions): string;
 
 ### dist/index.d.ts#grayColor
 export declare function grayColor(gray: number): string;

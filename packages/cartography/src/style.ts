@@ -112,7 +112,13 @@ export function checkStyle(style: Style, layer: string): void {
 
 /** This function gives a number for SVG, to 0.01 mm. */
 export function mm(value: number): string {
-  return String(Math.round(value * 100) / 100 + 0);
+  return rounded(value, 2);
+}
+
+/** This function gives the text of a value with `decimals` digits after the point, or fewer. It gives `0`, not `-0`. */
+export function rounded(value: number, decimals: number): string {
+  const factor = 10 ** decimals;
+  return String(Math.round(value * factor) / factor + 0);
 }
 
 /** This function gives the color of a gray level, from `#000000` to `#ffffff`. */

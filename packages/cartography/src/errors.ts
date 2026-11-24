@@ -10,7 +10,7 @@
  * - `frame`: the scale or the size of a frame is not a finite number more than 0.
  * - `id`: an identifier is not lower case letters, digits and hyphens, or two layers have the same identifier.
  * - `filter`: a filter is not one of the forms of `Filter`.
- * - `style`: a style draws nothing, or a size, a gray level or a dash is not correct.
+ * - `style`: a style draws nothing, or a size, a gray level, a dash or the count of decimals is not correct.
  * - `source`: a layer has no source, or its source has no title or no license.
  * - `label`: a label rule, a label font or an edge text is not correct.
  * - `atlas`: the radius or the overlap of an atlas is not correct.
