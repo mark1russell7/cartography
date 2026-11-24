@@ -44,6 +44,8 @@ const svg = renderMap(map);
 | `checkMap(map)` | Nothing. It throws a `MapError` for a map that is not correct. |
 | `frameView(frame)` | The functions between the Earth and the paper, and the direction of north. |
 | `frameBBox(frame)` | The box on the Earth around the frame, for a fetch of the data of a map. |
+| `frameAround(points, options)` | The frame with the largest scale that shows each point inside the margin. The option `roundScale` rounds the scale up. |
+| `niceScale(value)` | The smallest round scale that is not less than the value, from `NICE_SCALE_STEPS`. |
 | `matchesFilter(filter, feature)` | `true` when the feature matches the filter. |
 | `checkFilter(value)` | Nothing. It throws a `MapError` for a value that is not a `Filter`. |
 | `attributionLines(map)` | The lines of the attribution block: the scale, the projection and each source. |

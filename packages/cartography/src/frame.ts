@@ -106,3 +106,71 @@ export function frameBBox(frame: Frame): BBox {
   }
   return bboxOfPoints(points) as BBox;
 }
+
+/** The options of `frameAround`. */
+export interface FrameAroundOptions {
+  /** This function gives the projection of the frame for its center, for example `azimuthalEquidistant` of geo. */
+  readonly projection: (center: LatLon) => Projection;
+  /** The width of the map on the paper, in millimetres. */
+  readonly widthMm: number;
+  /** The height of the map on the paper, in millimetres. */
+  readonly heightMm: number;
+  /** The space between each point and the edge of the frame, in millimetres. The default is 0. */
+  readonly marginMm?: number;
+  /** The center of the frame. The default is the middle of the box of the points. */
+  readonly center?: LatLon;
+  /** The value `true`, the default, rounds the scale up to a value of `NICE_SCALE_STEPS`. */
+  readonly roundScale?: boolean;
+}
+
+/** The first digits of a round scale, for example 1:25,000 or 1:1,500,000. `frameAround` rounds a scale up to one of them. */
+export const NICE_SCALE_STEPS: readonly number[] = [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 7.5];
+
+/** This function gives the smallest round scale that is not less than the value, from `NICE_SCALE_STEPS`. */
+export function niceScale(value: number): number {
+  if (!(Number.isFinite(value) && value > 0)) throw new MapError("frame", `The scale ${value} is not a finite number more than 0`);
+  const power = 10 ** Math.floor(Math.log10(value));
+  for (const step of [...NICE_SCALE_STEPS, 10]) {
+    // The factor 1e-9 keeps a value that is already round, against the error of the floating point.
+    if (step * power >= value * (1 - 1e-9)) return step * power;
+  }
+  return 10 * power;
+}
+
+/**
+ * This function gives the frame with the largest scale that shows each point inside the margin.
+ *
+ * - The center is the middle of the box of the points, or the option `center`. The frame has the center at the middle
+ *   of the paper, so the space on the two sides of the center is the same.
+ * - The function finds the scale on the plane of the projection, as `frameView` uses it.
+ * - With `roundScale`, the scale goes up to a round value. A larger denominator shows more ground, so each point stays inside.
+ *
+ * @throws MapError - The code is `frame`: no point, a size or a margin that is not correct, or all the points at the center.
+ */
+export function frameAround(points: readonly LatLon[], options: FrameAroundOptions): Frame {
+  const { widthMm, heightMm } = options;
+  const margin = options.marginMm ?? 0;
+  if (points.length === 0) throw new MapError("frame", "The frame has no point to show");
+  if (!(Number.isFinite(margin) && margin >= 0)) throw new MapError("frame", `The margin ${margin} is not a finite number from 0`);
+  checkFrame({ projection: options.projection(points[0]!), center: points[0]!, scale: 1, widthMm, heightMm });
+  const halfWidth = widthMm / 2 - margin;
+  const halfHeight = heightMm / 2 - margin;
+  if (halfWidth <= 0 || halfHeight <= 0) throw new MapError("frame", `The margin ${margin} mm leaves no space in the frame`);
+  const box = bboxOfPoints(points) as BBox;
+  const center = options.center ?? { lat: (box.south + box.north) / 2, lon: (box.west + box.east) / 2 };
+  const projection = options.projection(center);
+  const origin = projection.toPlane(center);
+  let reachX = 0;
+  let reachY = 0;
+  for (const point of points) {
+    const plane = projection.toPlane(point);
+    reachX = Math.max(reachX, Math.abs(plane.x - origin.x));
+    reachY = Math.max(reachY, Math.abs(plane.y - origin.y));
+  }
+  if (reachX === 0 && reachY === 0) throw new MapError("frame", "All the points are at the center, so no scale fits them");
+  // The plane metres for one millimetre of paper, then the true scale at the center, as frameView gives it.
+  const planeMetersPerMm = Math.max(reachX / halfWidth, reachY / halfHeight);
+  const factors = projection.scale(center);
+  const exact = planeMetersPerMm * 1000 * Math.sqrt(factors.max * factors.min);
+  return { projection, center, scale: options.roundScale === false ? exact : niceScale(exact), widthMm, heightMm };
+}

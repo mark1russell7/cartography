@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+
+- `frameAround` gives the frame with the largest scale that shows a list of points inside a margin. The center is the middle of their box, or a given point.
+- `niceScale` rounds a scale up to a round value of `NICE_SCALE_STEPS`, for example 1:1,500,000. `frameAround` uses it by default.
+
 ## 0.1.2
 
 - `atlasPages` gives the pages of an atlas: a grid of frames at one scale on one plane that shows a circle on the Earth.
