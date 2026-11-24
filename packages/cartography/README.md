@@ -46,6 +46,7 @@ const svg = renderMap(map);
 | `frameBBox(frame)` | The box on the Earth around the frame, for a fetch of the data of a map. |
 | `frameAround(points, options)` | The frame with the largest scale that shows each point inside the margin. The option `roundScale` rounds the scale up. |
 | `niceScale(value)` | The smallest round scale that is not less than the value, from `NICE_SCALE_STEPS`. |
+| `geometryPath(view, geometry, options)` | The SVG path data of a line or an area on the paper of a frame. |
 | `matchesFilter(filter, feature)` | `true` when the feature matches the filter. |
 | `checkFilter(value)` | Nothing. It throws a `MapError` for a value that is not a `Filter`. |
 | `attributionLines(map)` | The lines of the attribution block: the scale, the projection and each source. |
@@ -115,6 +116,33 @@ const svg = renderMap({ ...map, frame, legendPlace: fit.legendPlace }, { labelFo
 - The place `side` puts them in one column at the right of the frame. The attribution block stays below the frame.
 - `mapMargins` gives the space around the frame for each place. The label font measures the legend texts.
 - `fit.space` is the index of the space of the frame. In this example, the value 1 tells to print the map in landscape.
+
+## A frame for a box on the Earth
+
+With no `heightMm`, `frameAround` fits the width only, and the height follows from the points. For a box in degrees, give its 4 corners and the middles of its north and south edges. An edge of the box is a curve on most planes. `geometryPath` gives the SVG path data of a geometry on the frame.
+
+```ts
+// A made-up box of approximately 8 km by 4.4 km, on a map of 180 mm width.
+const box = { south: 44.98, west: 9.95, north: 45.02, east: 10.05 };
+const middle = (box.west + box.east) / 2;
+const points = [
+  { lat: box.south, lon: box.west }, { lat: box.south, lon: box.east },
+  { lat: box.north, lon: box.west }, { lat: box.north, lon: box.east },
+  { lat: box.north, lon: middle }, { lat: box.south, lon: middle },
+];
+const frame = frameAround(points, { projection: azimuthalEquidistant, widthMm: 180, roundScale: false });
+const d = geometryPath(frameView(frame), { type: "Polygon", coordinates: [[[9.97, 44.99], [10.03, 44.99], [10.03, 45.01], [9.97, 44.99]]] });
+const svg = `<svg viewBox="0 0 ${frame.widthMm} ${frame.heightMm}"><path d="${d}" fill="none" stroke="black"/></svg>`;
+```
+
+- The center of the frame is the middle of the box of the points in degrees, not on the plane. The option `center` sets a different center.
+- The frame has the center at its middle. The point that is farthest from the center in x touches a side edge.
+- For points that are symmetric about the center, a point touches each of the two side edges.
+- The height is the reach of the points in y on the two sides of the center, with the margins. It is rounded up to a whole millimetre.
+- With `roundScale`, the default, the scale goes up to a round value. Then the points do not fill the width.
+- Each ring of a polygon is `M` and its first point, `L` and each next point, and `Z`. A line has no `Z`. A point gives no path data.
+- The values are in millimetres from the top left corner of the frame, with 2 decimals. The option `decimals` changes the number.
+- `renderMap` uses the same path data for its lines and areas. `geometryPath` does not clip to the frame.
 
 ## An atlas of a large area
 

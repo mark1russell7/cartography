@@ -1,8 +1,10 @@
 import type { Feature, Geometry, LatLon, Position } from "@mark1russell7/geo";
 import { azimuthalEquidistant } from "@mark1russell7/geo/projection";
+import { mulberry32, seedOf } from "@mark1russell7/rigor-generators";
 import { describe, expect, it } from "vitest";
 import { MapError } from "./errors.ts";
-import { attributionLines, checkMap, fitFrame, mapMargins, renderMap, type Layer, type MapDocument, type Source } from "./render.ts";
+import { frameView, type FrameView } from "./frame.ts";
+import { attributionLines, checkMap, fitFrame, geometryPath, mapMargins, renderMap, type Layer, type MapDocument, type Source } from "./render.ts";
 
 // A made-up town at a made-up center. It is not the place of a person.
 const CENTER: LatLon = { lat: 45, lon: 10 };
@@ -276,5 +278,81 @@ describe("checkMap", () => {
   it("refuses a place of the legend that is not below or side", () => {
     expect(() => checkMap(map(LAYERS, { legendPlace: "top" as never }))).toThrow(expect.objectContaining({ code: "style" }));
     expect(() => checkMap(map(LAYERS, { legendPlace: "side" }))).not.toThrow();
+  });
+});
+
+describe("geometryPath", () => {
+  // A view that puts the longitude on x and the latitude on y, so the path data is easy to read.
+  const PLAIN = { toPaper: (point: LatLon) => ({ x: point.lon, y: point.lat }) } as unknown as FrameView;
+  const square: Geometry = { type: "Polygon", coordinates: [[[10, 20], [30, 20], [30, 40], [10, 40], [10, 20]]] };
+
+  it("gives the path data of a known polygon", () => {
+    expect(geometryPath(PLAIN, square)).toBe("M10 20L30 20L30 40L10 40L10 20Z");
+  });
+
+  it("gives one closed ring for each ring of each polygon of a multi-polygon", () => {
+    const geometry: Geometry = {
+      type: "MultiPolygon",
+      coordinates: [
+        [[[0, 0], [4, 0], [4, 4], [0, 0]], [[1, 1], [2, 1], [2, 2], [1, 1]]],
+        [[[-1.5, 0.25], [-1, 0.25], [-1, 0.75], [-1.5, 0.25]]],
+      ],
+    };
+    expect(geometryPath(PLAIN, geometry)).toBe("M0 0L4 0L4 4L0 0ZM1 1L2 1L2 2L1 1ZM-1.5 0.25L-1 0.25L-1 0.75L-1.5 0.25Z");
+  });
+
+  it("gives open paths for lines, nothing for points, and each part of a collection", () => {
+    expect(geometryPath(PLAIN, { type: "LineString", coordinates: [[1, 2], [3, 4]] })).toBe("M1 2L3 4");
+    expect(geometryPath(PLAIN, { type: "MultiLineString", coordinates: [[[1, 2], [3, 4]], [[5, 6], [7, 8]]] })).toBe("M1 2L3 4M5 6L7 8");
+    expect(geometryPath(PLAIN, { type: "Point", coordinates: [1, 2] })).toBe("");
+    expect(geometryPath(PLAIN, { type: "MultiPoint", coordinates: [[1, 2]] })).toBe("");
+    const collection: Geometry = { type: "GeometryCollection", geometries: [square, { type: "Point", coordinates: [0, 0] }, { type: "LineString", coordinates: [[1, 2], [3, 4]] }] };
+    expect(geometryPath(PLAIN, collection)).toBe("M10 20L30 20L30 40L10 40L10 20ZM1 2L3 4");
+  });
+
+  it("rounds each value to the number of decimals, 2 by default, with no -0", () => {
+    const line: Geometry = { type: "LineString", coordinates: [[1.23456, -0.0001], [2.5, 3.14159]] };
+    expect(geometryPath(PLAIN, line)).toBe("M1.23 0L2.5 3.14");
+    expect(geometryPath(PLAIN, line, { decimals: 0 })).toBe("M1 0L3 3");
+    expect(geometryPath(PLAIN, line, { decimals: 4 })).toBe("M1.2346 -0.0001L2.5 3.1416");
+  });
+
+  it("refuses a number of decimals that is not an integer from 0 to 10", () => {
+    for (const decimals of [-1, 1.5, 11, Number.NaN]) {
+      expect(() => geometryPath(PLAIN, square, { decimals }), String(decimals)).toThrow(expect.objectContaining({ code: "style" }));
+    }
+  });
+
+  it("gives the path data that renderMap draws for an area", () => {
+    const document = map(LAYERS);
+    const d = geometryPath(frameView(document.frame), park.geometry as Geometry);
+    expect(renderMap(document)).toContain(`d="${d}"`);
+  });
+
+  it("puts the points of seeded polygons on the paper of a real frame", () => {
+    const view = frameView(map(LAYERS).frame);
+    const random = mulberry32(seedOf("cartography geometry path"));
+    for (let round = 0; round < 25; round += 1) {
+      const rings = Array.from({ length: 1 + Math.floor(random() * 3) }, () => {
+        const ring = Array.from({ length: 3 + Math.floor(random() * 6) }, () => at((random() - 0.5) * 6, (random() - 0.5) * 6));
+        return [...ring, ring[0]!];
+      });
+      const d = geometryPath(view, { type: "Polygon", coordinates: rings }, { decimals: 6 });
+      const parts = d.split("Z").filter((part) => part !== "");
+      expect(parts.length, `round ${round}`).toBe(rings.length);
+      parts.forEach((part, i) => {
+        const points = part
+          .slice(1)
+          .split("L")
+          .map((pair) => pair.split(" ").map(Number));
+        expect(points.length, `round ${round}`).toBe(rings[i]!.length);
+        points.forEach(([x, y], j) => {
+          const position = rings[i]![j]!;
+          const paper = view.toPaper({ lon: position[0]!, lat: position[1]! });
+          expect(Math.abs(x! - paper.x), `round ${round}`).toBeLessThanOrEqual(5e-7);
+          expect(Math.abs(y! - paper.y), `round ${round}`).toBeLessThanOrEqual(5e-7);
+        });
+      });
+    }
   });
 });

@@ -113,8 +113,11 @@ export interface FrameAroundOptions {
   readonly projection: (center: LatLon) => Projection;
   /** The width of the map on the paper, in millimetres. */
   readonly widthMm: number;
-  /** The height of the map on the paper, in millimetres. */
-  readonly heightMm: number;
+  /**
+   * The height of the map on the paper, in millimetres. With no height, the scale fits the width only. Then the height
+   * is the extent of the points in y at that scale, with the margins. It is rounded up to a whole millimetre.
+   */
+  readonly heightMm?: number;
   /** The space between each point and the edge of the frame, in millimetres. The default is 0. */
   readonly marginMm?: number;
   /** The center of the frame. The default is the middle of the box of the points. */
@@ -144,17 +147,20 @@ export function niceScale(value: number): number {
  *   of the paper, so the space on the two sides of the center is the same.
  * - The function finds the scale on the plane of the projection, as `frameView` uses it.
  * - With `roundScale`, the scale goes up to a round value. A larger denominator shows more ground, so each point stays inside.
+ * - With no `heightMm`, the scale fits the width only, and the height follows from the points. For a box on the Earth,
+ *   the points are its 4 corners and the middles of its north and south edges.
  *
- * @throws MapError - The code is `frame`: no point, a size or a margin that is not correct, or all the points at the center.
+ * @throws MapError - The code is `frame`. The reason is no point, a size or a margin that is not correct, or all the
+ *   points at the center. With no height, the reason can also be all the points on one vertical line, or no height.
  */
 export function frameAround(points: readonly LatLon[], options: FrameAroundOptions): Frame {
   const { widthMm, heightMm } = options;
   const margin = options.marginMm ?? 0;
   if (points.length === 0) throw new MapError("frame", "The frame has no point to show");
   if (!(Number.isFinite(margin) && margin >= 0)) throw new MapError("frame", `The margin ${margin} is not a finite number from 0`);
-  checkFrame({ projection: options.projection(points[0]!), center: points[0]!, scale: 1, widthMm, heightMm });
+  checkFrame({ projection: options.projection(points[0]!), center: points[0]!, scale: 1, widthMm, heightMm: heightMm ?? 1 });
   const halfWidth = widthMm / 2 - margin;
-  const halfHeight = heightMm / 2 - margin;
+  const halfHeight = heightMm === undefined ? Number.POSITIVE_INFINITY : heightMm / 2 - margin;
   if (halfWidth <= 0 || halfHeight <= 0) throw new MapError("frame", `The margin ${margin} mm leaves no space in the frame`);
   const box = bboxOfPoints(points) as BBox;
   const center = options.center ?? { lat: (box.south + box.north) / 2, lon: (box.west + box.east) / 2 };
@@ -168,9 +174,18 @@ export function frameAround(points: readonly LatLon[], options: FrameAroundOptio
     reachY = Math.max(reachY, Math.abs(plane.y - origin.y));
   }
   if (reachX === 0 && reachY === 0) throw new MapError("frame", "All the points are at the center, so no scale fits them");
+  if (heightMm === undefined && reachX === 0) throw new MapError("frame", "All the points are on one vertical line, so no scale fits the width");
   // The plane metres for one millimetre of paper, then the true scale at the center, as frameView gives it.
   const planeMetersPerMm = Math.max(reachX / halfWidth, reachY / halfHeight);
   const factors = projection.scale(center);
-  const exact = planeMetersPerMm * 1000 * Math.sqrt(factors.max * factors.min);
-  return { projection, center, scale: options.roundScale === false ? exact : niceScale(exact), widthMm, heightMm };
+  const root = Math.sqrt(factors.max * factors.min);
+  const exact = planeMetersPerMm * 1000 * root;
+  const scale = options.roundScale === false ? exact : niceScale(exact);
+  if (heightMm !== undefined) return { projection, center, scale, widthMm, heightMm };
+  // The frame has the center at its middle, so it needs the reach of the points in y on the two sides of the center.
+  // The factor 1e-9 keeps a whole value, against the error of the floating point.
+  const mmPerPlaneMeter = 1000 / (scale * root);
+  const frame: Frame = { projection, center, scale, widthMm, heightMm: Math.ceil((2 * reachY * mmPerPlaneMeter + 2 * margin) * (1 - 1e-9)) };
+  checkFrame(frame);
+  return frame;
 }

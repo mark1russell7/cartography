@@ -48,6 +48,7 @@ export {
   attributionLines,
   checkMap,
   fitFrame,
+  geometryPath,
   mapLabels,
   mapMargins,
   renderMap,
@@ -58,6 +59,7 @@ export {
   type MapDocument,
   type MapMargins,
   type MapSpace,
+  type PathOptions,
   type RenderOptions,
   type Source,
 } from "./render.ts";

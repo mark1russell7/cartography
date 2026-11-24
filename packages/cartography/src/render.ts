@@ -11,7 +11,7 @@ import { checkFilter, matchesFilter, type Filter } from "./filter.ts";
 import { frameView, type Frame, type FrameView, type PaperPoint } from "./frame.ts";
 import { checkLabelRule, labelsSvg, placeLabels, type LabelFont, type LabelPlacement, type LabelRule } from "./labels.ts";
 import { EDGE_TEXT_MM, edgeMarks, FRAME_EDGES, northArrowSvg, SCALE_BAR_ROW_MM, scaleBarLength, scaleBarSvg, type EdgeMark, type FrameEdge, type ScaleBarUnits } from "./marks.ts";
-import { checkStyle, grayColor, hatchPattern, mm, pointSymbol, strokeAttributes, type Style } from "./style.ts";
+import { checkStyle, grayColor, hatchPattern, mm, pointSymbol, rounded, strokeAttributes, type Style } from "./style.ts";
 
 /** The source of the data of a layer. The map prints each source in its attribution block. */
 export interface Source {
@@ -143,14 +143,59 @@ function paperOf(position: Position, view: FrameView): PaperPoint {
   return view.toPaper({ lat: position[1] as number, lon: position[0] as number });
 }
 
-function linePath(positions: readonly Position[], view: FrameView, box: PaperBox, close: boolean): string {
+function linePath(positions: readonly Position[], view: FrameView, box: PaperBox, close: boolean, decimals: number): string {
   let d = "";
   positions.forEach((position, i) => {
     const point = paperOf(position, view);
     box.add(point);
-    d += `${i === 0 ? "M" : "L"}${mm(point.x)} ${mm(point.y)}`;
+    d += `${i === 0 ? "M" : "L"}${rounded(point.x, decimals)} ${rounded(point.y, decimals)}`;
   });
   return close ? `${d}Z` : d;
+}
+
+/** This function gives the path data of a geometry, and adds each of its points to the box. */
+function pathOf(geometry: Geometry, view: FrameView, box: PaperBox, decimals: number): string {
+  switch (geometry.type) {
+    case "Point":
+    case "MultiPoint":
+      return "";
+    case "LineString":
+      return linePath(geometry.coordinates, view, box, false, decimals);
+    case "MultiLineString":
+      return geometry.coordinates.map((line) => linePath(line, view, box, false, decimals)).join("");
+    case "Polygon":
+    case "MultiPolygon": {
+      const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
+      return polygons.flatMap((rings) => rings.map((ring) => linePath(ring, view, box, true, decimals))).join("");
+    }
+    case "GeometryCollection":
+      return geometry.geometries.map((item) => pathOf(item, view, box, decimals)).join("");
+  }
+}
+
+/** The options of `geometryPath`. */
+export interface PathOptions {
+  /** The number of decimals of each millimetre value: an integer from 0 to 10. The default is 2, as in `renderMap`. */
+  readonly decimals?: number;
+}
+
+/**
+ * This function gives the SVG path data (the attribute `d`) of a geometry on the paper of a frame, in millimetres.
+ * `renderMap` uses the same path data for its lines and areas.
+ *
+ * - Each ring of a polygon is `M` and its first point, `L` and each next point, and `Z`: `M10 20L30 20L30 40Z`.
+ * - A line is the same with no `Z`.
+ * - A polygon with holes and a multi-polygon give one path data. Use `fill-rule="evenodd"` to fill it.
+ * - A point gives no path data. A geometry collection gives the path data of each of its geometries.
+ * - The function does not clip. A point out of the frame gives values out of the frame.
+ *
+ * @throws MapError - The code is `style`. The number of decimals is not an integer from 0 to 10.
+ * @throws GeoError - A position is not correct for the projection.
+ */
+export function geometryPath(view: FrameView, geometry: Geometry, options: PathOptions = {}): string {
+  const decimals = options.decimals ?? 2;
+  if (!(Number.isInteger(decimals) && decimals >= 0 && decimals <= 10)) throw new MapError("style", `The number of decimals ${decimals} is not an integer from 0 to 10`);
+  return pathOf(geometry, view, new PaperBox(), decimals);
 }
 
 /** This function gives the SVG of one geometry with a style. */
@@ -171,16 +216,14 @@ function drawGeometry(geometry: Geometry, style: Style, view: FrameView, fill: s
     case "MultiLineString": {
       if (style.stroke === undefined) return "";
       const box = new PaperBox();
-      const lines = geometry.type === "LineString" ? [geometry.coordinates] : geometry.coordinates;
-      const d = lines.map((line) => linePath(line, view, box, false)).join("");
+      const d = pathOf(geometry, view, box, 2);
       if (!box.touches(frame, style.stroke.widthMm)) return "";
       return `<path d="${d}" fill="none" ${strokeAttributes(style.stroke)}/>`;
     }
     case "Polygon":
     case "MultiPolygon": {
       const box = new PaperBox();
-      const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
-      const d = polygons.flatMap((rings) => rings.map((ring) => linePath(ring, view, box, true))).join("");
+      const d = pathOf(geometry, view, box, 2);
       if (!box.touches(frame, style.stroke?.widthMm ?? 0)) return "";
       const stroke = style.stroke === undefined ? `stroke="none"` : strokeAttributes(style.stroke);
       let svg = "";
