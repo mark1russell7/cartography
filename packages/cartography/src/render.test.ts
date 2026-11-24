@@ -4,7 +4,7 @@ import { mulberry32, seedOf } from "@mark1russell7/rigor-generators";
 import { describe, expect, it } from "vitest";
 import { MapError } from "./errors.ts";
 import { frameView, type FrameView } from "./frame.ts";
-import { attributionLines, checkMap, fitFrame, geometryPath, mapMargins, renderMap, type Layer, type MapDocument, type Source } from "./render.ts";
+import { attributionLines, checkMap, fitFrame, frameAttribution, geometryPath, mapMargins, renderMap, type Layer, type MapDocument, type Source } from "./render.ts";
 
 // A made-up town at a made-up center. It is not the place of a person.
 const CENTER: LatLon = { lat: 45, lon: 10 };
@@ -266,6 +266,28 @@ describe("attributionLines", () => {
       "Data: Made-up test data. License: CC0 1.0.",
       "Data: Other test data. License: CC BY 4.0. https://example.org/license Date: 2026-11-21.",
     ]);
+  });
+});
+
+describe("frameAttribution", () => {
+  it("gives the lines of attributionLines from a frame and a list of sources", () => {
+    const doc = map(LAYERS);
+    expect(frameAttribution(doc.frame, doc.layers.map((layer) => layer.source))).toEqual(attributionLines(doc));
+  });
+
+  it("names each source one time, in the sequence of the list, and a frame with no source has only its scale", () => {
+    const { frame } = map(LAYERS);
+    const a = { title: "A", license: "CC0 1.0" };
+    const b = { title: "B", license: "ODbL 1.0", url: "https://example.org/b" };
+    expect(frameAttribution(frame, [b, a, b]).slice(1)).toEqual(["Data: B. License: ODbL 1.0. https://example.org/b", "Data: A. License: CC0 1.0."]);
+    expect(frameAttribution(frame, [])).toEqual(["Scale 1:24,000 at the center. Projection: Azimuthal equidistant."]);
+  });
+
+  it("refuses a source with no title or no license, and names its place in the list", () => {
+    const { frame } = map(LAYERS);
+    const good = { title: "A", license: "CC0 1.0" };
+    expect(() => frameAttribution(frame, [good, { title: "B", license: "" }])).toThrow(/the item 2 of the list of sources has no license/);
+    expect(() => frameAttribution(frame, [null as never])).toThrow(expect.objectContaining({ code: "source", message: "The item 1 of the list of sources has no source" }));
   });
 });
 

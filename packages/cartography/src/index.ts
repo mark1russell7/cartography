@@ -41,6 +41,7 @@ export {
   scaleBarSvg,
   type EdgeMark,
   type FrameEdge,
+  type MarkPaint,
   type ScaleBarLength,
   type ScaleBarUnits,
 } from "./marks.ts";
@@ -48,6 +49,7 @@ export {
   attributionLines,
   checkMap,
   fitFrame,
+  frameAttribution,
   geometryPath,
   mapLabels,
   mapMargins,

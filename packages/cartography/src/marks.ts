@@ -4,7 +4,8 @@
  * @packageDocumentation
  */
 
-import { escapeHtml } from "@mark1russell7/text";
+import { escapeAttribute, escapeHtml } from "@mark1russell7/text";
+import { MapError } from "./errors.ts";
 import { mm } from "./style.ts";
 
 /** The units of the scale bars of a map. `both` gives a metric bar and an imperial bar. */
@@ -54,24 +55,67 @@ export function scaleBarLength(maxMeters: number, units: "metric" | "imperial"):
 /** The height of one scale bar with its label, in millimetres. */
 export const SCALE_BAR_ROW_MM = 4.5;
 
-/** This function gives the SVG of a scale bar of four parts, with its top left corner at a point on the paper. */
-export function scaleBarSvg(x: number, y: number, length: ScaleBarLength, mmPerMeter: number): string {
+/**
+ * The colors of a mark. A print map uses the defaults: black ink on white paper. A screen map can give
+ * `currentColor` or a CSS variable. Then the CSS of the page sets the colors of the mark in its light and dark theme.
+ */
+export interface MarkPaint {
+  /** The color of the lines, the texts and the dark parts. The default is `#000000`. */
+  readonly ink?: string;
+  /** The color of the light parts. The default is `#ffffff`. The value `none` gives light parts with no fill. */
+  readonly paper?: string;
+}
+
+/** The colors of a mark with the defaults, as values for SVG attributes, and the fill of its texts. */
+interface Paint {
+  readonly ink: string;
+  readonly paper: string;
+  /** The attribute `fill` of a text: none for the default ink, so a print map stays the same. */
+  readonly text: string;
+}
+
+function paintOf(paint: MarkPaint): Paint {
+  for (const [name, value] of [
+    ["ink", paint.ink],
+    ["paper", paint.paper],
+  ] as const) {
+    if (value !== undefined && (typeof value !== "string" || value.trim() === "")) {
+      throw new MapError("style", `The ${name} color of a mark is not a text that is not empty`);
+    }
+  }
+  const ink = paint.ink === undefined ? "#000000" : escapeAttribute(paint.ink);
+  const paper = paint.paper === undefined ? "#ffffff" : escapeAttribute(paint.paper);
+  return { ink, paper, text: paint.ink === undefined ? "" : ` fill="${ink}"` };
+}
+
+/**
+ * This function gives the SVG of a scale bar of four parts, with its top left corner at a point on the paper.
+ *
+ * @throws MapError - The code is `style`: a color of the paint is not a text that is not empty.
+ */
+export function scaleBarSvg(x: number, y: number, length: ScaleBarLength, mmPerMeter: number, paint: MarkPaint = {}): string {
+  const { ink, paper, text } = paintOf(paint);
   const total = length.meters * mmPerMeter;
   const part = total / 4;
   let parts = "";
   for (let i = 0; i < 4; i += 1) {
-    parts += `<rect x="${mm(x + i * part)}" y="${mm(y)}" width="${mm(part)}" height="1.5" fill="${i % 2 === 0 ? "#000000" : "#ffffff"}" stroke="#000000" stroke-width="0.15"/>`;
+    parts += `<rect x="${mm(x + i * part)}" y="${mm(y)}" width="${mm(part)}" height="1.5" fill="${i % 2 === 0 ? ink : paper}" stroke="${ink}" stroke-width="0.15"/>`;
   }
-  return `<g class="scale-bar">${parts}<text x="${mm(x + total + 1.5)}" y="${mm(y + 1.5)}" font-size="2.4">${escapeHtml(length.label)}</text></g>`;
+  return `<g class="scale-bar">${parts}<text x="${mm(x + total + 1.5)}" y="${mm(y + 1.5)}" font-size="2.4"${text}>${escapeHtml(length.label)}</text></g>`;
 }
 
-/** This function gives the SVG of a north arrow at a point on the paper, with the direction of north in degrees. */
-export function northArrowSvg(x: number, y: number, northDegrees: number): string {
+/**
+ * This function gives the SVG of a north arrow at a point on the paper, with the direction of north in degrees.
+ *
+ * @throws MapError - The code is `style`: a color of the paint is not a text that is not empty.
+ */
+export function northArrowSvg(x: number, y: number, northDegrees: number, paint: MarkPaint = {}): string {
+  const { ink, paper, text } = paintOf(paint);
   return (
     `<g class="north-arrow" transform="translate(${mm(x)} ${mm(y)}) rotate(${mm(northDegrees)})">` +
-    `<circle r="4.5" fill="#ffffff" stroke="#000000" stroke-width="0.2"/>` +
-    `<path d="M0 -3.6L1.6 1.2L0 0.4L-1.6 1.2Z" fill="#000000"/>` +
-    `<text y="3.9" font-size="2.2" text-anchor="middle">N</text></g>`
+    `<circle r="4.5" fill="${paper}" stroke="${ink}" stroke-width="0.2"/>` +
+    `<path d="M0 -3.6L1.6 1.2L0 0.4L-1.6 1.2Z" fill="${ink}"/>` +
+    `<text y="3.9" font-size="2.2" text-anchor="middle"${text}>N</text></g>`
   );
 }
 

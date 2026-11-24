@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.6
+
+- `scaleBarSvg` and `northArrowSvg` take an optional paint: the ink and the paper colors of the mark. A screen map can give `currentColor`, so the CSS of its page sets the colors. With no paint, the marks do not change.
+- `frameAttribution` gives the lines of an attribution block for a frame and a list of sources. `attributionLines` uses it. A map that a page draws itself with `geometryPath` can name its sources and their licenses.
+- The new type `MarkPaint` has the two colors.
+
 ## 0.1.5
 
 - `simplifyMm` of a layer also simplifies its LineStrings and MultiLineStrings, with `simplifyLines` of geo 0.5.11. The lines of one layer that meet at a position still meet there. A map of roads at a small scale gets a smaller SVG.

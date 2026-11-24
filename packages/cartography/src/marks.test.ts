@@ -49,6 +49,35 @@ describe("the marks", () => {
   it("draw a north arrow with its rotation", () => {
     expect(northArrowSvg(10, 10, -1.234)).toContain("rotate(-1.23)");
   });
+
+  it("use black ink on white paper by default, with no fill on their texts", () => {
+    const bar = scaleBarSvg(0, 0, { meters: 1000, label: "1 km" }, 1 / 24);
+    const arrow = northArrowSvg(10, 10, 0);
+    expect(bar.match(/fill="#000000"/g)).toHaveLength(2);
+    expect(bar.match(/fill="#ffffff"/g)).toHaveLength(2);
+    expect(arrow).toContain('<circle r="4.5" fill="#ffffff" stroke="#000000"');
+    expect(`${bar}${arrow}`).not.toMatch(/<text[^>]*fill=/);
+  });
+
+  it("use the ink and the paper of a paint, also on their texts", () => {
+    const paint = { ink: "currentColor", paper: "var(--paper)" };
+    const bar = scaleBarSvg(0, 0, { meters: 1000, label: "1 km" }, 1 / 24, paint);
+    const arrow = northArrowSvg(10, 10, 0, paint);
+    expect(`${bar}${arrow}`).not.toMatch(/#000000|#ffffff/);
+    expect(bar.match(/fill="currentColor"/g)).toHaveLength(3);
+    expect(bar.split('fill="var(--paper)"')).toHaveLength(3);
+    expect(arrow).toContain('<circle r="4.5" fill="var(--paper)" stroke="currentColor"');
+    expect(arrow).toContain('text-anchor="middle" fill="currentColor">N</text>');
+    expect(northArrowSvg(0, 0, 0, { paper: "none" })).toContain('fill="none" stroke="#000000"');
+  });
+
+  it("escape a color of a paint, and refuse a color that is empty or not a text", () => {
+    expect(northArrowSvg(0, 0, 0, { ink: 'red" onload="x' })).toContain('fill="red&quot; onload=&quot;x"');
+    for (const paint of [{ ink: "" }, { paper: " " }, { ink: 5 as never }]) {
+      expect(() => northArrowSvg(0, 0, 0, paint)).toThrow(expect.objectContaining({ code: "style" }));
+      expect(() => scaleBarSvg(0, 0, { meters: 1, label: "1 m" }, 1, paint)).toThrow(expect.objectContaining({ code: "style" }));
+    }
+  });
 });
 
 describe("the styles", () => {

@@ -35,6 +35,7 @@ MapError: dist/index.d.ts#MapError
 type MapErrorCode: dist/index.d.ts#MapErrorCode
 type MapMargins: dist/index.d.ts#MapMargins
 type MapSpace: dist/index.d.ts#MapSpace
+type MarkPaint: dist/index.d.ts#MarkPaint
 NICE_SCALE_STEPS: dist/index.d.ts#NICE_SCALE_STEPS
 type PaperPoint: dist/index.d.ts#PaperPoint
 type PathOptions: dist/index.d.ts#PathOptions
@@ -61,6 +62,7 @@ columnName: dist/index.d.ts#columnName
 edgeMarks: dist/index.d.ts#edgeMarks
 fitFrame: dist/index.d.ts#fitFrame
 frameAround: dist/index.d.ts#frameAround
+frameAttribution: dist/index.d.ts#frameAttribution
 frameBBox: dist/index.d.ts#frameBBox
 frameView: dist/index.d.ts#frameView
 geometryKind: dist/index.d.ts#geometryKind
@@ -295,6 +297,12 @@ interface MapSpace {
   readonly heightMm: number;
 }
 
+### dist/index.d.ts#MarkPaint
+interface MarkPaint {
+  readonly ink?: string;
+  readonly paper?: string;
+}
+
 ### dist/index.d.ts#NICE_SCALE_STEPS
 export declare const NICE_SCALE_STEPS: readonly number[];
 
@@ -408,6 +416,9 @@ export declare function fitFrame(map: MapDocument, spaces: readonly MapSpace[], 
 ### dist/index.d.ts#frameAround
 export declare function frameAround(points: readonly LatLon[], options: FrameAroundOptions): Frame;
 
+### dist/index.d.ts#frameAttribution
+export declare function frameAttribution(frame: Frame, sources: readonly Source[]): string[];
+
 ### dist/index.d.ts#frameBBox
 export declare function frameBBox(frame: Frame): BBox;
 
@@ -451,7 +462,7 @@ export declare function niceNumber(max: number): number;
 export declare function niceScale(value: number): number;
 
 ### dist/index.d.ts#northArrowSvg
-export declare function northArrowSvg(x: number, y: number, northDegrees: number): string;
+export declare function northArrowSvg(x: number, y: number, northDegrees: number, paint?: MarkPaint): string;
 
 ### dist/index.d.ts#placeLabels
 export declare function placeLabels(layers: readonly LabelLayer[], view: FrameView, font: LabelFont, obstacles?: readonly {
@@ -471,7 +482,7 @@ export declare function renderMap(map: MapDocument, options?: RenderOptions): st
 export declare function scaleBarLength(maxMeters: number, units: "metric" | "imperial"): ScaleBarLength;
 
 ### dist/index.d.ts#scaleBarSvg
-export declare function scaleBarSvg(x: number, y: number, length: ScaleBarLength, mmPerMeter: number): string;
+export declare function scaleBarSvg(x: number, y: number, length: ScaleBarLength, mmPerMeter: number, paint?: MarkPaint): string;
 
 ### dist/index.d.ts#strokeAttributes
 export declare function strokeAttributes(stroke: StrokeStyle): string;

@@ -79,10 +79,11 @@ function checkId(id: string, what: string): void {
   if (!ID.test(id)) throw new MapError("id", `The identifier "${id}" of the ${what} is not lower case letters, digits and hyphens that start with a letter`);
 }
 
-function checkSource(source: Source | undefined, layer: string): void {
-  if (source === undefined || typeof source !== "object") throw new MapError("source", `The layer "${layer}" has no source`);
-  if (typeof source.title !== "string" || source.title.trim() === "") throw new MapError("source", `The source of the layer "${layer}" has no title`);
-  if (typeof source.license !== "string" || source.license.trim() === "") throw new MapError("source", `The source of the layer "${layer}" has no license`);
+/** This function refuses a source with no title or no license. The owner is the text of its layer or its place in a list. */
+function checkSource(source: Source | undefined, owner: string): void {
+  if (source === undefined || source === null || typeof source !== "object") throw new MapError("source", `${owner.charAt(0).toUpperCase()}${owner.slice(1)} has no source`);
+  if (typeof source.title !== "string" || source.title.trim() === "") throw new MapError("source", `The source of ${owner} has no title`);
+  if (typeof source.license !== "string" || source.license.trim() === "") throw new MapError("source", `The source of ${owner} has no license`);
 }
 
 /**
@@ -102,7 +103,7 @@ export function checkMap(map: MapDocument): void {
     checkId(layer.id, "layer");
     if (ids.has(layer.id)) throw new MapError("id", `Two layers have the identifier "${layer.id}"`);
     ids.add(layer.id);
-    checkSource(layer.source, layer.id);
+    checkSource(layer.source, `the layer "${layer.id}"`);
     checkStyle(layer.style, layer.id);
     if (layer.filter !== undefined) checkFilter(layer.filter, `layer "${layer.id}" filter`);
     if (layer.label !== undefined) checkLabelRule(layer.label, layer.id);
@@ -485,14 +486,30 @@ export function fitFrame(map: MapDocument, spaces: readonly MapSpace[], options:
 
 /** This function gives the lines of the attribution block: the scale, the projection and each source one time. */
 export function attributionLines(map: MapDocument): string[] {
-  const lines = [`Scale 1:${thousands(map.frame.scale)} at the center. Projection: ${map.frame.projection.name}.`];
+  return frameAttribution(
+    map.frame,
+    map.layers.map((layer) => layer.source),
+  );
+}
+
+/**
+ * This function gives the lines of an attribution block for a frame and its sources. The first line has the scale
+ * and the projection of the frame. Then each source has one line, in the sequence of the list. Use it for a map that
+ * a page draws itself, for example a screen map from `geometryPath`. `attributionLines` gives the same lines for a
+ * map document.
+ *
+ * @throws MapError - The code is `source`: a source has no title or no license.
+ */
+export function frameAttribution(frame: Frame, sources: readonly Source[]): string[] {
+  const lines = [`Scale 1:${thousands(frame.scale)} at the center. Projection: ${frame.projection.name}.`];
   const seen = new Set<string>();
-  for (const { source } of map.layers) {
+  sources.forEach((source, i) => {
+    checkSource(source, `the item ${i + 1} of the list of sources`);
     const line = `Data: ${source.title}. License: ${source.license}.${source.url === undefined ? "" : ` ${source.url}`}${source.date === undefined ? "" : ` Date: ${source.date}.`}`;
-    if (seen.has(line)) continue;
+    if (seen.has(line)) return;
     seen.add(line);
     lines.push(line);
-  }
+  });
   return lines;
 }
 

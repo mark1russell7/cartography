@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6
+
+- It uses cartography 0.1.6. Its API does not change.
+
 ## 0.1.5
 
 - It uses cartography 0.1.5. Its API does not change.
