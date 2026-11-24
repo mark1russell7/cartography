@@ -54,6 +54,7 @@ export {
   mapLabels,
   mapMargins,
   renderMap,
+  type AttributionOptions,
   type FitOptions,
   type FrameFit,
   type Layer,

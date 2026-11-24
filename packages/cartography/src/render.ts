@@ -484,6 +484,12 @@ export function fitFrame(map: MapDocument, spaces: readonly MapSpace[], options:
   return best;
 }
 
+/** The options of `frameAttribution`. */
+export interface AttributionOptions {
+  /** The value `false` leaves out the scale, for a screen map. The default is `true`. */
+  readonly scale?: boolean;
+}
+
 /** This function gives the lines of the attribution block: the scale, the projection and each source one time. */
 export function attributionLines(map: MapDocument): string[] {
   return frameAttribution(
@@ -498,10 +504,14 @@ export function attributionLines(map: MapDocument): string[] {
  * a page draws itself, for example a screen map from `geometryPath`. `attributionLines` gives the same lines for a
  * map document.
  *
+ * A screen map changes its size with the window, so its scale is not the scale of the frame. With the option
+ * `scale: false`, the first line has only the projection. The scale bar stays correct on a screen.
+ *
  * @throws MapError - The code is `source`: a source has no title or no license.
  */
-export function frameAttribution(frame: Frame, sources: readonly Source[]): string[] {
-  const lines = [`Scale 1:${thousands(frame.scale)} at the center. Projection: ${frame.projection.name}.`];
+export function frameAttribution(frame: Frame, sources: readonly Source[], options: AttributionOptions = {}): string[] {
+  const projection = `Projection: ${frame.projection.name}.`;
+  const lines = [options.scale === false ? projection : `Scale 1:${thousands(frame.scale)} at the center. ${projection}`];
   const seen = new Set<string>();
   sources.forEach((source, i) => {
     checkSource(source, `the item ${i + 1} of the list of sources`);

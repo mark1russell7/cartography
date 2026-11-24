@@ -283,6 +283,13 @@ describe("frameAttribution", () => {
     expect(frameAttribution(frame, [])).toEqual(["Scale 1:24,000 at the center. Projection: Azimuthal equidistant."]);
   });
 
+  it("leaves out the scale with the option scale false, for a screen map", () => {
+    const { frame } = map(LAYERS);
+    const a = { title: "A", license: "CC0 1.0" };
+    expect(frameAttribution(frame, [a], { scale: false })).toEqual(["Projection: Azimuthal equidistant.", "Data: A. License: CC0 1.0."]);
+    expect(frameAttribution(frame, [a], { scale: true })).toEqual(frameAttribution(frame, [a]));
+  });
+
   it("refuses a source with no title or no license, and names its place in the list", () => {
     const { frame } = map(LAYERS);
     const good = { title: "A", license: "CC0 1.0" };

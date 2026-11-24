@@ -50,7 +50,7 @@ const svg = renderMap(map);
 | `matchesFilter(filter, feature)` | `true` when the feature matches the filter. |
 | `checkFilter(value)` | Nothing. It throws a `MapError` for a value that is not a `Filter`. |
 | `attributionLines(map)` | The lines of the attribution block: the scale, the projection and each source. |
-| `frameAttribution(frame, sources)` | The same lines for a frame and a list of sources, for a map that a page draws itself. |
+| `frameAttribution(frame, sources, options)` | The same lines for a frame and a list of sources, for a map that a page draws itself. The option `scale: false` leaves out the scale. |
 | `scaleBarSvg(x, y, length, mmPerMeter, paint)` | The SVG of a scale bar. The paint sets its ink and paper colors. The default is black on white. |
 | `northArrowSvg(x, y, northDegrees, paint)` | The SVG of a north arrow. The paint sets its colors, as for the scale bar. |
 | `scaleBarLength(meters, units)` | The longest round length of a scale bar that is not longer than a length on the ground. |
@@ -157,12 +157,13 @@ const paint = { ink: "currentColor", paper: "none" };
 const length = scaleBarLength((0.3 * frame.widthMm) / view.mmPerMeter, "metric");
 const bar = scaleBarSvg(4, frame.heightMm - 6, length, view.mmPerMeter, paint);
 const arrow = northArrowSvg(frame.widthMm - 6.5, 6.5, view.northDegrees, paint);
-const lines = frameAttribution(frame, [{ title: "Made-up test data", license: "CC0 1.0" }]);
+const lines = frameAttribution(frame, [{ title: "Made-up test data", license: "CC0 1.0" }], { scale: false });
 ```
 
 - The ink is the color of the lines, the texts and the dark parts. The paper is the color of the light parts. The value `none` gives light parts with no fill.
 - A color goes into an SVG attribute with escapes. An empty color throws a `MapError` with the code `style`.
 - With no paint, the marks are the same as the marks of `renderMap`.
+- A screen map changes its size with the window, so the scale of the frame is not true on the screen. The option `scale: false` leaves it out. The scale bar stays correct.
 - `frameAttribution` names each source one time, in the sequence of the list. A source with no title or no license throws a `MapError` with the code `source`.
 
 ## An atlas of a large area

@@ -10,6 +10,7 @@ ATLAS_OVERLAP_MM: dist/index.d.ts#ATLAS_OVERLAP_MM
 type Atlas: dist/index.d.ts#Atlas
 type AtlasPage: dist/index.d.ts#AtlasPage
 type AtlasPlan: dist/index.d.ts#AtlasPlan
+type AttributionOptions: dist/index.d.ts#AttributionOptions
 EDGE_TEXT_MM: dist/index.d.ts#EDGE_TEXT_MM
 type EdgeMark: dist/index.d.ts#EdgeMark
 FRAME_EDGES: dist/index.d.ts#FRAME_EDGES
@@ -116,6 +117,11 @@ interface AtlasPlan {
   readonly widthMm: number;
   readonly heightMm: number;
   readonly overlapMm?: number | undefined;
+}
+
+### dist/index.d.ts#AttributionOptions
+interface AttributionOptions {
+  readonly scale?: boolean;
 }
 
 ### dist/index.d.ts#EDGE_TEXT_MM
@@ -417,7 +423,7 @@ export declare function fitFrame(map: MapDocument, spaces: readonly MapSpace[], 
 export declare function frameAround(points: readonly LatLon[], options: FrameAroundOptions): Frame;
 
 ### dist/index.d.ts#frameAttribution
-export declare function frameAttribution(frame: Frame, sources: readonly Source[]): string[];
+export declare function frameAttribution(frame: Frame, sources: readonly Source[], options?: AttributionOptions): string[];
 
 ### dist/index.d.ts#frameBBox
 export declare function frameBBox(frame: Frame): BBox;
