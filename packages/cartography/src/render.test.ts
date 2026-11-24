@@ -120,6 +120,22 @@ describe("renderMap", () => {
     expect(simplified).toBeLessThan(200);
     expect(simplified).toBeGreaterThan(8);
   });
+
+  it("simplifies the lines of a layer to the tolerance on the paper", () => {
+    const ring = (circle(1, 2000) as Extract<Geometry, { type: "Polygon" }>).coordinates[0]!;
+    const arc = ring.slice(0, 1001);
+    const lines: Feature[] = [
+      { type: "Feature", geometry: { type: "LineString", coordinates: arc }, properties: {} },
+      { type: "Feature", geometry: { type: "MultiLineString", coordinates: [ring.slice(1000, 1501), ring.slice(1500)] }, properties: {} },
+    ];
+    const layer = (simplifyMm?: number): Layer => ({ id: "lines", features: lines, style: { stroke: { widthMm: 0.2 } }, source: TEST_SOURCE, ...(simplifyMm === undefined ? {} : { simplifyMm }) });
+    const count = (doc: string): number => group(doc, "test-map-lines").match(/L/g)!.length;
+    const full = count(renderMap(map([layer()])));
+    const simplified = count(renderMap(map([layer(0.2)])));
+    expect(full).toBe(2000);
+    expect(simplified).toBeLessThan(200);
+    expect(simplified).toBeGreaterThan(8);
+  });
 });
 
 function sizeOf(svg: string): { width: number; height: number } {

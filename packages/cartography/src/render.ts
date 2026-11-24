@@ -4,7 +4,7 @@
  * @packageDocumentation
  */
 
-import { simplifyRegions, type Feature, type Geometry, type Position, type Region } from "@mark1russell7/geo";
+import { simplifyLines, simplifyRegions, type Feature, type Geometry, type Position, type Region } from "@mark1russell7/geo";
 import { escapeAttribute, escapeHtml } from "@mark1russell7/text";
 import { MapError } from "./errors.ts";
 import { checkFilter, matchesFilter, type Filter } from "./filter.ts";
@@ -39,7 +39,7 @@ export interface Layer {
   readonly filter?: Filter;
   /** The text of the layer in the legend. No text gives no entry in the legend. */
   readonly legend?: string;
-  /** The tolerance in millimetres on the paper for the simplification of the areas. No value keeps each position. */
+  /** The tolerance in millimetres on the paper for the simplification of the areas and the lines. No value keeps each position. */
   readonly simplifyMm?: number;
   /** The rule of the labels of the features. No rule gives no labels. */
   readonly label?: LabelRule;
@@ -240,17 +240,39 @@ function drawGeometry(geometry: Geometry, style: Style, view: FrameView, fill: s
 function featuresOf(layer: Layer, frame: Frame): Feature[] {
   const kept = layer.features.filter((feature) => feature.geometry !== null && (layer.filter === undefined || matchesFilter(layer.filter, feature)));
   if (layer.simplifyMm === undefined) return kept;
-  const areas = kept.flatMap((feature, i) => (feature.geometry?.type === "Polygon" || feature.geometry?.type === "MultiPolygon" ? [i] : []));
-  if (areas.length === 0) return kept;
   // A tolerance of t mm on the paper is t * scale mm on the ground, and t * scale / 1e6 km.
-  const simplified = simplifyRegions(
-    areas.map((i) => kept[i]!.geometry as Region),
-    (layer.simplifyMm * frame.scale) / 1e6,
-  );
+  const toleranceKm = (layer.simplifyMm * frame.scale) / 1e6;
   const result = [...kept];
-  areas.forEach((index, j) => {
-    result[index] = { ...kept[index]!, geometry: simplified[j]! };
-  });
+  const areas = kept.flatMap((feature, i) => (feature.geometry?.type === "Polygon" || feature.geometry?.type === "MultiPolygon" ? [i] : []));
+  if (areas.length > 0) {
+    const simplified = simplifyRegions(
+      areas.map((i) => kept[i]!.geometry as Region),
+      toleranceKm,
+    );
+    areas.forEach((index, j) => {
+      result[index] = { ...kept[index]!, geometry: simplified[j]! };
+    });
+  }
+  // The lines of the layer go to simplifyLines together, so lines that meet at a position still meet there.
+  const lines = kept.flatMap((feature, i) => (feature.geometry?.type === "LineString" || feature.geometry?.type === "MultiLineString" ? [i] : []));
+  if (lines.length > 0) {
+    const parts = lines.flatMap((i) => {
+      const geometry = kept[i]!.geometry!;
+      return geometry.type === "LineString" ? [geometry.coordinates] : geometry.type === "MultiLineString" ? geometry.coordinates : [];
+    });
+    const simplified = simplifyLines(parts, toleranceKm);
+    let next = 0;
+    for (const index of lines) {
+      const geometry = kept[index]!.geometry!;
+      if (geometry.type === "LineString") {
+        result[index] = { ...kept[index]!, geometry: { type: "LineString", coordinates: simplified[next]! } };
+        next += 1;
+      } else if (geometry.type === "MultiLineString") {
+        result[index] = { ...kept[index]!, geometry: { type: "MultiLineString", coordinates: simplified.slice(next, next + geometry.coordinates.length) } };
+        next += geometry.coordinates.length;
+      }
+    }
+  }
   return result;
 }
 

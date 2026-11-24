@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- `simplifyMm` of a layer also simplifies its LineStrings and MultiLineStrings, with `simplifyLines` of geo 0.5.11. The lines of one layer that meet at a position still meet there. A map of roads at a small scale gets a smaller SVG.
+
 ## 0.1.4
 
 - The option `heightMm` of `frameAround` is optional. With no height, the scale fits the width, and the height follows from the points.

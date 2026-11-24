@@ -221,8 +221,8 @@ importers:
   packages/cartography:
     dependencies:
       '@mark1russell7/geo':
-        specifier: ^0.5.4
-        version: 0.5.5
+        specifier: ^0.5.11
+        version: 0.5.11
       '@mark1russell7/text':
         specifier: ^0.0.17
         version: 0.0.17
@@ -564,8 +564,8 @@ packages:
     resolution: {integrity: sha512-Pb978ZnvlAxzcdWtRtqTGb7mZFCvlNrdKnpZqhxQ7gafzeNGf1JqYFuB4RWiLbJzRuFUWjEoAVG5f2TndCIlSg==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/geo@0.5.5':
-    resolution: {integrity: sha512-xi68H+YBJRYNx17d6qIrqYtsXXu/TONHKXnvm7lNYUAY4eFFw4goGu1pjh8ctcluaBaAigc7KQ58St5Vxgw5FQ==}
+  '@mark1russell7/geo@0.5.11':
+    resolution: {integrity: sha512-4CUZsC9MNy3j27Xt4qgtOVbWig9lcTNjD0twKAFVI4PIfPH1J2yTLElRiJLsJIahffnpHBSPFu3QPyDcGwvjhw==}
     engines: {node: '>=22.12'}
 
   '@mark1russell7/layout-contract@0.11.1':
@@ -1957,7 +1957,7 @@ snapshots:
 
   '@mark1russell7/files@0.0.4': {}
 
-  '@mark1russell7/geo@0.5.5':
+  '@mark1russell7/geo@0.5.11':
     dependencies:
       '@mark1russell7/optional': 1.4.0
       '@mark1russell7/predicates': 0.1.5
