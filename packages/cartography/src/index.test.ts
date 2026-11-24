@@ -3,7 +3,7 @@ import * as entry from "./index.ts";
 
 describe("the entry", () => {
   it("gives the functions of the core", () => {
-    for (const name of ["renderMap", "checkMap", "frameView", "frameBBox", "matchesFilter", "checkFilter", "checkStyle", "scaleBarLength", "attributionLines", "placeLabels", "mapLabels", "labelText", "checkLabelRule", "labelsSvg", "mapMargins", "fitFrame", "frameAround", "geometryPath"]) {
+    for (const name of ["renderMap", "checkMap", "frameView", "frameBBox", "matchesFilter", "checkFilter", "checkStyle", "scaleBarLength", "attributionLines", "frameAttribution", "placeLabels", "mapLabels", "labelText", "checkLabelRule", "labelsSvg", "mapMargins", "fitFrame", "frameAround", "geometryPath"]) {
       expect(entry[name as keyof typeof entry], name).toBeTypeOf("function");
     }
     expect(entry.SCALE_BAR_ROW_MM).toBe(4.5);
