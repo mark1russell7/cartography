@@ -18,6 +18,7 @@ type Filter: dist/index.d.ts#Filter
 type FilterValue: dist/index.d.ts#FilterValue
 type FitOptions: dist/index.d.ts#FitOptions
 type Frame: dist/index.d.ts#Frame
+type FrameAroundOptions: dist/index.d.ts#FrameAroundOptions
 type FrameEdge: dist/index.d.ts#FrameEdge
 type FrameFit: dist/index.d.ts#FrameFit
 type FrameView: dist/index.d.ts#FrameView
@@ -34,6 +35,7 @@ MapError: dist/index.d.ts#MapError
 type MapErrorCode: dist/index.d.ts#MapErrorCode
 type MapMargins: dist/index.d.ts#MapMargins
 type MapSpace: dist/index.d.ts#MapSpace
+NICE_SCALE_STEPS: dist/index.d.ts#NICE_SCALE_STEPS
 type PaperPoint: dist/index.d.ts#PaperPoint
 type PlacedLabel: dist/index.d.ts#PlacedLabel
 type PointStyle: dist/index.d.ts#PointStyle
@@ -57,6 +59,7 @@ checkStyle: dist/index.d.ts#checkStyle
 columnName: dist/index.d.ts#columnName
 edgeMarks: dist/index.d.ts#edgeMarks
 fitFrame: dist/index.d.ts#fitFrame
+frameAround: dist/index.d.ts#frameAround
 frameBBox: dist/index.d.ts#frameBBox
 frameView: dist/index.d.ts#frameView
 geometryKind: dist/index.d.ts#geometryKind
@@ -69,6 +72,7 @@ mapMargins: dist/index.d.ts#mapMargins
 matchesFilter: dist/index.d.ts#matchesFilter
 mm: dist/index.d.ts#mm
 niceNumber: dist/index.d.ts#niceNumber
+niceScale: dist/index.d.ts#niceScale
 northArrowSvg: dist/index.d.ts#northArrowSvg
 placeLabels: dist/index.d.ts#placeLabels
 pointSymbol: dist/index.d.ts#pointSymbol
@@ -165,6 +169,16 @@ interface Frame {
   readonly scale: number;
   readonly widthMm: number;
   readonly heightMm: number;
+}
+
+### dist/index.d.ts#FrameAroundOptions
+interface FrameAroundOptions {
+  readonly projection: (center: LatLon) => Projection;
+  readonly widthMm: number;
+  readonly heightMm: number;
+  readonly marginMm?: number;
+  readonly center?: LatLon;
+  readonly roundScale?: boolean;
 }
 
 ### dist/index.d.ts#FrameEdge
@@ -279,6 +293,9 @@ interface MapSpace {
   readonly heightMm: number;
 }
 
+### dist/index.d.ts#NICE_SCALE_STEPS
+export declare const NICE_SCALE_STEPS: readonly number[];
+
 ### dist/index.d.ts#PaperPoint
 interface PaperPoint {
   readonly x: number;
@@ -381,6 +398,9 @@ export declare function edgeMarks(widthMm: number, heightMm: number, texts: Read
 ### dist/index.d.ts#fitFrame
 export declare function fitFrame(map: MapDocument, spaces: readonly MapSpace[], options?: FitOptions): FrameFit;
 
+### dist/index.d.ts#frameAround
+export declare function frameAround(points: readonly LatLon[], options: FrameAroundOptions): Frame;
+
 ### dist/index.d.ts#frameBBox
 export declare function frameBBox(frame: Frame): BBox;
 
@@ -416,6 +436,9 @@ export declare function mm(value: number): string;
 
 ### dist/index.d.ts#niceNumber
 export declare function niceNumber(max: number): number;
+
+### dist/index.d.ts#niceScale
+export declare function niceScale(value: number): number;
 
 ### dist/index.d.ts#northArrowSvg
 export declare function northArrowSvg(x: number, y: number, northDegrees: number): string;

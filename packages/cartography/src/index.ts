@@ -18,7 +18,7 @@ export {
 } from "./atlas.ts";
 export { MapError, type MapErrorCode } from "./errors.ts";
 export { checkFilter, geometryKind, matchesFilter, type Filter, type FilterValue, type GeometryKind } from "./filter.ts";
-export { checkFrame, frameBBox, frameView, type Frame, type FrameView, type PaperPoint } from "./frame.ts";
+export { checkFrame, frameAround, frameBBox, frameView, NICE_SCALE_STEPS, niceScale, type Frame, type FrameAroundOptions, type FrameView, type PaperPoint } from "./frame.ts";
 export {
   checkLabelRule,
   labelsSvg,
