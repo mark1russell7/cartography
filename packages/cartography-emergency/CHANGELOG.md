@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7
+
+An automated dependency update changes the shipped files, so this PATCH ships them.
+
 ## 0.1.6
 
 - It uses cartography 0.1.6. Its API does not change.
