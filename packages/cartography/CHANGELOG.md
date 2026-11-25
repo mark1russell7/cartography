@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7
+
+The release train changes the range of `@mark1russell7/text` to a version outside the old range. The public types do not name @mark1russell7/text.
+
 ## 0.1.6
 
 - `scaleBarSvg` and `northArrowSvg` take an optional paint: the ink and the paper colors of the mark. A screen map can give `currentColor`, so the CSS of its page sets the colors. With no paint, the marks do not change.
