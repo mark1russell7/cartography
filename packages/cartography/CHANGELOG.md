@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.9
+
+The release train changes the range of `@mark1russell7/text` to a version outside the old range. The public types do not name @mark1russell7/text.
+
 ## 0.1.8
 
 The release train changes the range of `@mark1russell7/text` to a version outside the old range. The public types do not name @mark1russell7/text.
